@@ -1,7 +1,7 @@
 {
   "id": "sender-info",
   "elements": [
-    // 标题
+  
     {
       "type": "text",
       "position": { "x": 100, "y": 15 },
@@ -15,7 +15,6 @@
       "editable": false
     },
 
-    // 寄件人信息区域
     {
       "type": "rect",
       "position": { "x": 10, "y": 25 },
@@ -58,7 +57,7 @@
       "editable": true
     },
 
-    // 收件人信息区域
+    
     {
       "type": "rect",
       "position": { "x": 10, "y": 80 },
@@ -101,7 +100,7 @@
       "editable": true
     },
 
-    // 条码和警示标志
+
     {
       "type": "image",
       "position": { "x": 10, "y": 135 },
