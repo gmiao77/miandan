@@ -30,6 +30,8 @@
       }
       .canvas-container {
         @apply border border-gray-300 rounded-md bg-white relative overflow-hidden;
+        /* 确保缩放中心在画布中心 */
+        transform-origin: center center;
       }
       .canvas-element {
         @apply absolute select-none;
@@ -169,15 +171,25 @@
         <i class="fa fa-info-circle mr-1"></i>
         <span>合规面单请确保所有信息完整，标志位置正确</span>
       </div>
-      <div class="flex items-center">
-        <span class="text-sm mr-2">画布尺寸:</span>
-        <input type="number" id="canvasWidth" value="210" min="50" max="500" 
-               class="w-16 px-2 py-1 border border-gray-300 rounded text-sm">
-        <span class="mx-1">×</span>
-        <input type="number" id="canvasHeight" value="148" min="50" max="500" 
-               class="w-16 px-2 py-1 border border-gray-300 rounded text-sm">
-        <span class="ml-1 mr-3">mm</span>
-        <button id="applySizeBtn" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">应用</button>
+      
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center">
+          <span class="text-sm mr-2">缩放:</span>
+          <input type="range" id="zoomSlider" min="50" max="200" step="10" value="100" 
+                 class="w-24 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+          <span id="zoomPercentage" class="ml-2 text-sm text-gray-700 w-10 text-right">100%</span>
+        </div>
+
+        <div class="flex items-center">
+          <span class="text-sm mr-2">画布尺寸:</span>
+          <input type="number" id="canvasWidth" value="210" min="50" max="500" 
+                 class="w-16 px-2 py-1 border border-gray-300 rounded text-sm">
+          <span class="mx-1">×</span>
+          <input type="number" id="canvasHeight" value="148" min="50" max="500" 
+                 class="w-16 px-2 py-1 border border-gray-300 rounded text-sm">
+          <span class="ml-1 mr-3">mm</span>
+          <button id="applySizeBtn" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">应用</button>
+        </div>
       </div>
     </div>
     
@@ -214,14 +226,15 @@
     </div>
   </div>
 
-<script>
+  <script>
     const state = {
       currentTemplate: null,
       allTemplates: [],
       allAssets: [],
       filteredAssets: [],
       currentCategory: 'all',
-      repoName: 'miandan' // 你的仓库名称
+      repoName: 'miandan', // 你的仓库名称
+      canvasZoom: 1.0 // *** 新增：画布缩放比例 (1.0 = 100%) ***
     };
 
     const assetCategories = [
@@ -245,6 +258,9 @@
     const assetTab = document.getElementById('assetTab');
     const templateLibrary = document.getElementById('templateLibrary');
     const assetLibrary = document.getElementById('assetLibrary');
+    // *** 新增 DOM 元素 ***
+    const zoomSlider = document.getElementById('zoomSlider');
+    const zoomPercentage = document.getElementById('zoomPercentage');
 
     // 像素到毫米的转换因子 (1px ≈ 0.264583mm, 1mm ≈ 3.779528px)
     const MM_TO_PX = 3.779528;
@@ -258,6 +274,28 @@
       ]);
       initEventListeners();
       initInteractJs(); // 初始化interact.js
+      applyCanvasSize(); // 初始化画布尺寸和缩放
+    }
+
+    // 画布缩放
+    function zoomCanvas(zoomLevel) {
+      const scaleFactor = zoomLevel / 100;
+      state.canvasZoom = scaleFactor; 
+      canvasContainer.style.transform = `scale(${state.canvasZoom})`;
+      zoomPercentage.textContent = `${zoomLevel}%`;
+    }
+
+    // 画布尺寸调整 (Modified to also apply initial scale and origin)
+    function applyCanvasSize() {
+      const width = parseInt(canvasWidthInput.value) || 210;
+      const height = parseInt(canvasHeightInput.value) || 148;
+      
+      // 设置实际的布局尺寸（毫米）
+      canvasContainer.style.width = `${width}mm`;
+      canvasContainer.style.height = `${height}mm`;
+
+      // 重新应用当前的缩放比例
+      canvasContainer.style.transform = `scale(${state.canvasZoom})`;
     }
 
     // 加载模板元数据
@@ -681,14 +719,6 @@
       }
     }
 
-    // 画布尺寸调整
-    function applyCanvasSize() {
-      const width = parseInt(canvasWidthInput.value) || 210;
-      const height = parseInt(canvasHeightInput.value) || 148;
-      canvasContainer.style.width = `${width}mm`;
-      canvasContainer.style.height = `${height}mm`;
-    }
-
     // *** 新增：删除选中元素的功能函数 ***
     function deleteSelectedElement() {
       // 找到当前选中的元素
@@ -720,11 +750,18 @@
       document.querySelectorAll('.canvas-element').forEach(el => {
         el.classList.remove('selected');
       });
+      
+      // 暂时重置缩放以确保 html2canvas 捕获原始尺寸
+      const originalScale = state.canvasZoom;
+      canvasContainer.style.transform = `scale(1)`;
 
       html2canvas(canvas, {
         scale: 2, // 提高分辨率
         useCORS: true // 允许跨域图片
       }).then(canvasImage => {
+        // 恢复缩放
+        canvasContainer.style.transform = `scale(${originalScale})`;
+        
         const imgData = canvasImage.toDataURL('image/png');
         
         // 恢复选中状态（如果有的话）
@@ -772,7 +809,13 @@
 
     // 事件监听
     function initEventListeners() {
-      // *** 新增：监听 Delete 和 Backspace 键删除选中元素 ***
+      // *** 缩放拖动条监听 ***
+      zoomSlider.addEventListener('input', (e) => {
+        const zoomLevel = parseInt(e.target.value);
+        zoomCanvas(zoomLevel);
+      });
+      
+      // *** 监听 Delete 和 Backspace 键删除选中元素 ***
       document.addEventListener('keydown', (e) => {
         // 检查按键是否是 Delete (keyCode 46) 或 Backspace (keyCode 8)
         if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -878,7 +921,3 @@
   </script>
 </body>
 </html>
-</body>
-</html>
-
-
