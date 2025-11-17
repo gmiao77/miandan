@@ -478,8 +478,8 @@
             
             if (domElement) {
               canvas.appendChild(domElement);
-              // *** 修复：为图片容器添加交互 ***
-              if (element.type === 'image') {
+              // *** 修复：为图片和矩形容器添加交互 (拖拽和缩放) ***
+              if (element.type === 'image' || element.type === 'rect') { // 修复了矩形无法缩放的问题
                 setupInteractForElement(domElement); 
               }
             }
@@ -499,6 +499,15 @@
           div.style.height = `${element.size.height}mm`;
           div.style.backgroundColor = element.style.fill || 'transparent';
           div.style.border = `${element.style.strokeWidth || 1}px solid ${element.style.stroke || '#ddd'}`;
+
+          // <<< 修复：为 rect 添加缩放手柄 >>>
+          const handles = ['tl', 'tr', 'bl', 'br'];
+          handles.forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-handle-${pos}`;
+            div.appendChild(handle);
+          });
+          // <<< 修复结束 >>>
           
           return div;
         }
@@ -522,8 +531,7 @@
             div.contentEditable = true;
             div.classList.add('editable');
             div.setAttribute('title', '点击编辑');
-            // 文本元素只允许拖拽，不启用缩放
-            setupInteractForElement(div, false);
+            // 文本元素由主选择器处理拖拽，内容编辑已通过 initInteractJs 中的 ignoreFrom 修复。
           }
           
           return div;
@@ -575,8 +583,8 @@
                 })
               ],
               autoScroll: true,
-              // *** 核心修复点：忽略来自缩放手柄的拖拽事件 ***
-              ignoreFrom: '.resize-handle',
+              // *** 核心修复点：忽略来自缩放手柄和可编辑文本的拖拽事件 ***
+              ignoreFrom: '.resize-handle, [contenteditable="true"]', // 修复了文本无法编辑的问题
               listeners: {
                 move(event) {
                   const target = event.target;
@@ -630,8 +638,8 @@
     
         // *** 核心修改 3: 为单个元素设置缩放功能 ***
         function setupInteractForElement(element, enableResize = true) {
-          // 只有图片容器启用缩放
-          if (element.dataset.type === 'image-wrapper' && enableResize) {
+          // 只有图片容器和矩形启用缩放
+          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect') && enableResize) { // 修复了矩形无法缩放的问题
             interact(element).resizable({
               inertia: true,
               modifiers: [
@@ -684,8 +692,8 @@
     
         // 画布尺寸调整
         function applyCanvasSize() {
-          const width = parseInt(canvasWidthInput.value) || 100;
-          const height = parseInt(canvasHeightInput.value) || 100;
+          const width = parseInt(canvasWidthInput.value) || 210;
+          const height = parseInt(canvasHeightInput.value) || 148;
           canvasContainer.style.width = `${width}mm`;
           canvasContainer.style.height = `${height}mm`;
         }
