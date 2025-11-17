@@ -230,32 +230,19 @@
 
 
     <script>
-        // 对应 templates/text.json 的模板 ID
+        // NEW: 对应 templates/text.json 的模板 ID 和路径
         const TEXT_TEMPLATE_ID = 'text-template'; 
         const TEXT_TEMPLATE_PATH = './templates/text.json';
 
-        // 模拟 text.json 文件的内容 (因为它在实际文件系统中可能不存在)
-        // 用户可以根据这个结构创建 text.json 文件
-        const TEXT_JSON_CONTENT = {
-            elements: [
-                {
-                    type: 'text',
-                    position: { x: 0, y: 0 }, // 初始位置不重要，loadTemplateToCanvas 会计算居中
-                    content: 'This is a text area', // 用户要求的内置文字内容
-                    style: { fontSize: 14, fontWeight: 'normal', color: '#000' },
-                    editable: true
-                }
-            ]
-        };
-
-        // text.json 对应的元数据 (用于模板列表展示)
+        // NEW: text.json 对应的元数据 (用于模板列表展示)
+        // 确保 path 对应到实际的文件路径
         const TEXT_TEMPLATE_META = {
             id: TEXT_TEMPLATE_ID,
             name: '内置文本框',
             description: '点击插入一个可移动、可编辑的文本框。',
             thumbnail: 'https://via.placeholder.com/100x75/007bff/ffffff?text=Text+Box', 
             path: TEXT_TEMPLATE_PATH, 
-            size: { width: 210, height: 148, unit: 'mm' } // 插入时的默认画布尺寸 (A5)
+            size: { width: 210, height: 148, unit: 'mm' } 
         };
 
         const state = {
@@ -267,13 +254,12 @@
           repoName: 'miandan' // 你的仓库名称
         };
     
-        // UPDATED: 资产分类 (移除 '文本' 类别)
         const assetCategories = [
           '代理', '法国标', '化妆品', '能效', 
           '纽扣电池', '西班牙回收', '窒息警告', '其他'
         ];
     
-        // DOM元素
+        // DOM元素 (保持不变)
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvasContainer');
         const canvasWidthInput = document.getElementById('canvasWidth');
@@ -289,12 +275,11 @@
         const assetTab = document.getElementById('assetTab');
         const templateLibrary = document.getElementById('templateLibrary');
         const assetLibrary = document.getElementById('assetLibrary');
-        // NEW: 属性面板DOM
         const propertyPanel = document.getElementById('propertyPanel');
         const fontSizeSelect = document.getElementById('fontSizeSelect');
-        let selectedTextElement = null; // 跟踪当前选中的文本元素
+        let selectedTextElement = null; 
     
-        // 像素到毫米的转换因子 (1px ≈ 0.264583mm, 1mm ≈ 3.779528px)
+        // 像素到毫米的转换因子 (保持不变)
         const MM_TO_PX = 3.779528;
         const PX_TO_MM = 0.264583;
     
@@ -304,12 +289,12 @@
             loadTemplateMetadata(),
             loadAllAssets()
           ]);
-          populateFontSizeOptions(); // 填充字号选项
+          populateFontSizeOptions(); 
           initEventListeners();
-          initInteractJs(); // 初始化interact.js
+          initInteractJs(); 
         }
 
-        // 填充字号选项
+        // 填充字号选项 (保持不变)
         function populateFontSizeOptions() {
             for (let i = 8; i <= 36; i += 2) {
                 const option = document.createElement('option');
@@ -319,7 +304,7 @@
             }
         }
     
-        // 加载模板元数据 (新增 text.json 元数据)
+        // 加载模板元数据 (更新：将 text.json 元数据放在首位)
         async function loadTemplateMetadata() {
           try {
             // 尝试加载远程模板元数据
@@ -345,7 +330,6 @@
           try {
             const allAssets = [];
             
-            // 1. 加载图片资产
             for (const category of assetCategories) {
               for (let i = 1; i <= 10; i++) {
                 const src = `/${state.repoName}/assets/images/${category}/${category}${i}.jpg`;
@@ -384,7 +368,7 @@
           });
         }
     
-        // 渲染模板列表
+        // 渲染模板列表 (保持不变)
         function renderTemplateList(templates) {
           if (templates.length === 0) {
             templateListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无合规模板数据</div>';
@@ -399,4 +383,608 @@
                     <div class="aspect-[4/3] ${isTextBox ? 'bg-blue-100 flex items-center justify-center' : 'bg-gray-100'} rounded overflow-hidden mb-2">
                         ${isTextBox 
                             ? `<i class="fa fa-font text-blue-600 text-3xl"></i>` 
-                            : `<img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-
+                            : `<img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-full h-full object-cover">`
+                        }
+                    </div>
+                    <h3 class="text-sm font-medium text-gray-800">${template.name}</h3>
+                    <p class="text-xs text-gray-500">${template.description}</p>
+                    <p class="text-xs text-gray-400 mt-1">${template.size.width}×${template.size.height}${template.size.unit}</p>
+                </div>
+            `;
+          }).join('');
+        }
+    
+        // 渲染标志列表 (保持不变)
+        function renderAssetList(assets) {
+          if (assets.length === 0) {
+            assetListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无标志数据</div>';
+            return;
+          }
+    
+          const assetsByCategory = {};
+          assets.forEach(asset => {
+            if (!assetsByCategory[asset.category]) {
+              assetsByCategory[asset.category] = [];
+            }
+            assetsByCategory[asset.category].push(asset);
+          });
+    
+          let html = '';
+          for (const category in assetsByCategory) {
+            html += `
+              <div class="mb-4">
+                <h3 class="text-sm font-medium text-gray-700 mb-2">${category}</h3>
+                <div class="grid grid-cols-2 gap-2">
+                  ${assetsByCategory[category].map(asset => {
+                      return `
+                        <div class="asset-card" data-id="${asset.id}" data-type="image" data-src="${asset.src}" data-category="${asset.category}">
+                            <div class="bg-gray-100 rounded overflow-hidden aspect-square">
+                                <img src="${asset.src}" alt="${asset.name}" class="w-full h-full object-contain p-1">
+                            </div>
+                            <p class="text-xs text-center mt-1 text-gray-600">${asset.name}</p>
+                        </div>
+                      `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }
+          assetListEl.innerHTML = html;
+        }
+    
+        // 添加标志到画布 (保持不变)
+        function addAssetToCanvas(src) {
+          if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
+            canvas.innerHTML = '';
+          }
+          
+          const elementId = `asset-${Date.now()}`;
+          const wrapper = document.createElement('div');
+          wrapper.id = elementId;
+          wrapper.className = 'canvas-element selected'; 
+          wrapper.dataset.type = 'image-wrapper';
+          
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = '合规标志';
+          img.onerror = () => {
+            img.src = 'https://via.placeholder.com/100?text=标志缺失';
+          };
+          
+          const handles = ['tl', 'tr', 'bl', 'br'];
+          handles.forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-handle-${pos}`;
+            wrapper.appendChild(handle);
+          });
+          
+          wrapper.appendChild(img);
+    
+          const defaultSizeMm = 50;
+          const canvasWidth = parseFloat(canvasContainer.style.width);
+          const canvasHeight = parseFloat(canvasContainer.style.height);
+          
+          wrapper.style.left = `${(canvasWidth - defaultSizeMm) / 2}mm`;
+          wrapper.style.top = `${(canvasHeight - defaultSizeMm) / 2}mm`;
+          wrapper.style.width = `${defaultSizeMm}mm`;
+          wrapper.style.height = `${defaultSizeMm}mm`;
+          
+          canvas.appendChild(wrapper);
+    
+          document.querySelectorAll('.canvas-element').forEach(el => {
+            if (el !== wrapper) el.classList.remove('selected');
+          });
+          
+          wrapper.classList.add('selected');
+          setupInteractForElement(wrapper); 
+          showPropertyPanel(null); 
+        }
+    
+        // 渲染模板元素 (保持不变)
+        function renderTemplateElements(elements) {
+          canvas.innerHTML = '';
+          showPropertyPanel(null); 
+          
+          let firstElement = null;
+
+          elements.forEach((element, index) => {
+            const elementId = `element-${index}-${Date.now()}`;
+            let domElement;
+            
+            switch (element.type) {
+              case 'rect':
+                domElement = createRectElement(elementId, element);
+                break;
+              case 'text':
+                domElement = createTextElement(elementId, element);
+                break;
+              case 'image':
+                domElement = createImageElement(elementId, element);
+                break;
+            }
+            
+            if (domElement) {
+              canvas.appendChild(domElement);
+              if (element.type === 'image' || element.type === 'rect' || element.type === 'text') { 
+                setupInteractForElement(domElement); 
+              }
+              domElement.setAttribute('data-x', domElement.offsetLeft);
+              domElement.setAttribute('data-y', domElement.offsetTop);
+
+              if (!firstElement) {
+                firstElement = domElement; 
+              }
+            }
+          });
+          
+          if (firstElement) {
+              document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+              firstElement.classList.add('selected');
+              showPropertyPanel(firstElement);
+          }
+        }
+    
+        // 创建元素工具函数 (保持不变)
+        function createRectElement(id, element) {
+          const div = document.createElement('div');
+          div.id = id;
+          div.className = 'canvas-element';
+          div.dataset.type = 'rect';
+          
+          div.style.left = `${element.position.x}mm`;
+          div.style.top = `${element.position.y}mm`;
+          div.style.width = `${element.size.width}mm`;
+          div.style.height = `${element.size.height}mm`;
+          div.style.backgroundColor = element.style.fill || 'transparent';
+          div.style.border = `${element.style.strokeWidth || 1}px solid ${element.style.stroke || '#ddd'}`;
+
+          const handles = ['tl', 'tr', 'bl', 'br'];
+          handles.forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-handle-${pos}`;
+            div.appendChild(handle);
+          });
+          
+          return div;
+        }
+    
+        function createTextElement(id, element) {
+          const div = document.createElement('div');
+          div.id = id;
+          div.className = 'canvas-element';
+          div.dataset.type = 'text';
+          
+          div.style.left = `${element.position.x}mm`;
+          div.style.top = `${element.position.y}mm`;
+          div.style.fontSize = `${element.style.fontSize || 12}px`;
+          div.style.fontWeight = element.style.fontWeight || 'normal';
+          div.style.color = element.style.color || '#333';
+          div.style.whiteSpace = 'nowrap';
+          if (element.style.textAlign) div.style.textAlign = element.style.textAlign;
+          
+          div.innerText = element.content;
+          if (element.editable) {
+            div.contentEditable = true;
+            div.classList.add('editable');
+            div.setAttribute('title', '拖动移动，双击编辑');
+          }
+          
+          return div;
+        }
+    
+        function createImageElement(id, element) {
+          const wrapper = document.createElement('div');
+          wrapper.id = id;
+          wrapper.className = 'canvas-element';
+          wrapper.dataset.type = 'image-wrapper'; 
+          
+          const img = document.createElement('img');
+          img.src = element.src.replace('./', `/${state.repoName}/`);
+          img.alt = '合规标志';
+          img.onerror = () => {
+            img.src = 'https://via.placeholder.com/60?text=标志缺失';
+          };
+          
+          wrapper.style.left = `${element.position.x}mm`;
+          wrapper.style.top = `${element.position.y}mm`;
+          wrapper.style.width = `${element.size.width}mm`;
+          wrapper.style.height = `${element.size.height}mm`;
+    
+          const handles = ['tl', 'tr', 'bl', 'br'];
+          handles.forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-handle-${pos}`;
+            wrapper.appendChild(handle);
+          });
+          
+          wrapper.appendChild(img);
+          
+          return wrapper; 
+        }
+    
+        // 初始化interact.js交互 (保持不变)
+        function initInteractJs() {
+          interact('.canvas-element')
+            .draggable({
+              inertia: true, 
+              modifiers: [
+                interact.modifiers.restrictRect({
+                  restriction: 'parent', 
+                  endOnly: true
+                })
+              ],
+              autoScroll: true,
+              ignoreFrom: '.resize-handle', 
+              listeners: {
+                move(event) {
+                  const target = event.target;
+                  let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                  let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+    
+                  const mmX = x * PX_TO_MM;
+                  const mmY = y * PX_TO_MM;
+    
+                  target.style.left = `${mmX}mm`;
+                  target.style.top = `${mmY}mm`;
+    
+                  target.setAttribute('data-x', x);
+                  target.setAttribute('data-y', y);
+                }
+              }
+            })
+            .on('down', function(event) {
+              const target = event.target.closest('.canvas-element'); 
+              
+              if (!target) {
+                showPropertyPanel(null); 
+                return;
+              }
+    
+              document.querySelectorAll('.canvas-element').forEach(el => {
+                el.classList.remove('selected');
+                el.removeAttribute('data-x'); 
+                el.removeAttribute('data-y');
+              });
+              
+              target.classList.add('selected');
+              
+              target.setAttribute('data-x', target.offsetLeft);
+              target.setAttribute('data-y', target.offsetTop);
+
+              showPropertyPanel(target); 
+            });
+    
+          interact('#canvas').on('down', function(event) {
+            if (event.target === canvas) {
+              document.querySelectorAll('.canvas-element').forEach(el => {
+                el.classList.remove('selected');
+              });
+              showPropertyPanel(null); 
+            }
+          });
+        }
+    
+        // 为单个元素设置缩放功能 (保持不变)
+        function setupInteractForElement(element, enableResize = true) {
+          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect') && enableResize) {
+            interact(element).resizable({
+              inertia: true,
+              modifiers: [
+                interact.modifiers.restrictSize({
+                  min: { width: 10, height: 10 }
+                }),
+                interact.modifiers.restrictRect({
+                  restriction: 'parent', 
+                  endOnly: true
+                })
+              ],
+              edges: { 
+                left: '.resize-handle-tl, .resize-handle-bl', 
+                right: '.resize-handle-tr, .resize-handle-br', 
+                bottom: '.resize-handle-bl, .resize-handle-br', 
+                top: '.resize-handle-tl, .resize-handle-tr' 
+              },
+              listeners: {
+                move(event) {
+                  const target = event.target;
+                  
+                  let x = (parseFloat(target.getAttribute('data-x')) || 0);
+                  let y = (parseFloat(target.getAttribute('data-y')) || 0);
+                  
+                  x += event.deltaRect.left;
+                  y += event.deltaRect.top;
+    
+                  const mmWidth = event.rect.width * PX_TO_MM;
+                  const mmHeight = event.rect.height * PX_TO_MM;
+                  const mmX = x * PX_TO_MM;
+                  const mmY = y * PX_TO_MM;
+                  
+                  target.style.width = `${mmWidth}mm`;
+                  target.style.height = `${mmHeight}mm`;
+                  target.style.left = `${mmX}mm`;
+                  target.style.top = `${mmY}mm`;
+    
+                  target.setAttribute('data-x', x);
+                  target.setAttribute('data-y', y);
+                }
+              }
+            });
+          }
+        }
+        
+        // 显示/隐藏属性面板，并绑定选中元素 (保持不变)
+        function showPropertyPanel(element) {
+            if (element && element.dataset.type === 'text') {
+                selectedTextElement = element;
+                const currentSize = parseFloat(element.style.fontSize) || 12;
+                fontSizeSelect.value = currentSize;
+                propertyPanel.classList.remove('hidden');
+            } else {
+                selectedTextElement = null;
+                propertyPanel.classList.add('hidden');
+            }
+        }
+
+        // 更新文本属性（字号） (保持不变)
+        function updateTextProperties() {
+            if (selectedTextElement) {
+                const newSize = fontSizeSelect.value;
+                selectedTextElement.style.fontSize = `${newSize}px`;
+            }
+        }
+    
+        // 加载模板到画布 (更新：通过 fetch 加载 JSON，并为 text.json 计算居中)
+        async function loadTemplateToCanvas(templateId) {
+            const templateMeta = state.allTemplates.find(t => t.id === templateId);
+            if (!templateMeta) return;
+
+            let templateData;
+
+            // 1. Fetch template data from the path
+            try {
+                // 确保 path 正确解析，这里假设相对路径 ./templates/xxx.json
+                const fetchPath = templateMeta.path.replace('./', `/${state.repoName}/`);
+                const response = await fetch(fetchPath);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch ${templateMeta.path}: ${response.statusText}`);
+                }
+                templateData = await response.json();
+            } catch (error) {
+                alert('加载模板详情失败，请检查文件路径（例如：templates/text.json）或网络连接。');
+                console.error('加载模板详情失败:', error);
+                return;
+            }
+
+            // 2. 设置画布尺寸
+            const canvasWidthMm = templateMeta.size.width;
+            const canvasHeightMm = templateMeta.size.height;
+            canvasWidthInput.value = canvasWidthMm;
+            canvasHeightInput.value = canvasHeightMm;
+            applyCanvasSize();
+            
+            let elementsToRender = templateData.elements;
+
+            // 3. 应用居中逻辑（仅针对内置文本框模板）
+            if (templateId === TEXT_TEMPLATE_ID && elementsToRender.length > 0) {
+                // 预估文本框默认宽度和高度，以便居中
+                const defaultTextWidthMm = 100;
+                const defaultTextHeightMm = 20;
+
+                // 计算居中位置
+                const centerX = canvasWidthMm / 2 - defaultTextWidthMm / 2;
+                const centerY = canvasHeightMm / 2 - defaultTextHeightMm / 2;
+
+                elementsToRender = elementsToRender.map(el => ({
+                    ...el,
+                    position: { 
+                        x: centerX, 
+                        y: centerY 
+                    }
+                }));
+            }
+            
+            // 4. 清空画布并渲染元素
+            renderTemplateElements(elementsToRender); 
+
+            // 5. 选中当前模板卡片
+            document.querySelectorAll('.template-card').forEach(card => card.classList.remove('active'));
+            document.querySelector(`.template-card[data-id="${templateId}"]`).classList.add('active');
+        }
+
+        // 画布尺寸调整 (保持不变)
+        function applyCanvasSize() {
+          const width = parseInt(canvasWidthInput.value) || 210;
+          const height = parseInt(canvasHeightInput.value) || 148;
+          canvasContainer.style.width = `${width}mm`;
+          canvasContainer.style.height = `${height}mm`;
+        }
+    
+        // 删除选中元素的功能函数 (保持不变)
+        function deleteSelectedElement() {
+          const selectedElement = document.querySelector('.canvas-element.selected');
+          
+          if (selectedElement) {
+            selectedElement.remove();
+            showPropertyPanel(null); 
+            
+            if (canvas.children.length === 0) {
+                canvas.innerHTML = `
+                  <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                    请从左侧选择模板或标志添加到画布
+                  </div>
+                `;
+            }
+          }
+        }
+    
+        // 导出功能 (保持不变)
+        function exportCanvas(format) {
+          if (canvas.children.length === 0 || canvas.querySelector('.text-gray-400')) {
+            alert('请先选择并填写合规面单信息');
+            return;
+          }
+          
+          document.querySelectorAll('.canvas-element').forEach(el => {
+            el.classList.remove('selected');
+          });
+          showPropertyPanel(null); 
+    
+          html2canvas(canvas, {
+            scale: 2,
+            useCORS: true
+          }).then(canvasImage => {
+            const imgData = canvasImage.toDataURL('image/png');
+            
+            if (format === 'pdf') {
+              const { jsPDF } = window.jspdf;
+              const pdf = new jsPDF({
+                orientation: canvasWidthInput.value > canvasHeightInput.value ? 'l' : 'p',
+                unit: 'mm',
+                format: [parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value)]
+              });
+              pdf.addImage(imgData, 'PNG', 0, 0, parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value));
+              pdf.save('跨境物流合规面单.pdf');
+            } else {
+              const link = document.createElement('a');
+              link.download = `跨境物流合规面单.${format}`;
+              link.href = format === 'jpg' ? imgData.replace('image/png', 'image/jpeg') : imgData;
+              link.click();
+            }
+          });
+        }
+    
+        // 筛选标志 (保持不变)
+        function filterAssets() {
+          const keyword = assetSearchInput.value.toLowerCase();
+          let filtered = state.allAssets;
+          
+          if (state.currentCategory !== 'all') {
+            filtered = filtered.filter(asset => asset.category === state.currentCategory);
+          }
+          
+          if (keyword) {
+            filtered = filtered.filter(asset => 
+              asset.name.toLowerCase().includes(keyword) || 
+              asset.category.toLowerCase().includes(keyword)
+            );
+          }
+          
+          state.filteredAssets = filtered;
+          renderAssetList(filtered);
+        }
+    
+        // 事件监听 (保持不变)
+        function initEventListeners() {
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+              const focusedElement = document.activeElement;
+              const isInputFocused = (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA');
+              const isEditable = focusedElement.hasAttribute('contenteditable') && focusedElement.getAttribute('contenteditable') === 'true';
+    
+              if (!isInputFocused && !isEditable) {
+                e.preventDefault();
+                deleteSelectedElement();
+              }
+            }
+          });
+          
+          fontSizeSelect.addEventListener('change', updateTextProperties);
+          
+          document.addEventListener('click', (e) => {
+            if (!e.target.closest('#canvas') && !e.target.closest('#propertyPanel')) {
+                if (!document.querySelector('.canvas-element.selected')) {
+                    showPropertyPanel(null); 
+                }
+            }
+          });
+    
+          // 标签页切换
+          templateTab.addEventListener('click', () => {
+            templateLibrary.classList.remove('hidden');
+            assetLibrary.classList.add('hidden');
+            templateTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            assetTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+          });
+          
+          assetTab.addEventListener('click', () => {
+            assetLibrary.classList.remove('hidden');
+            templateLibrary.classList.add('hidden');
+            assetTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            templateTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+          });
+    
+          // 模板搜索
+          templateSearchInput.addEventListener('input', (e) => {
+            const keyword = e.target.value.toLowerCase();
+            const filtered = state.allTemplates.filter(t => 
+              t.name.toLowerCase().includes(keyword) || 
+              t.description.toLowerCase().includes(keyword)
+            );
+            renderTemplateList(filtered);
+          });
+    
+          // 模板点击
+          templateListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.template-card');
+            if (card) {
+              const templateId = card.getAttribute('data-id');
+              loadTemplateToCanvas(templateId);
+            }
+          });
+    
+          // 标志分类筛选
+          document.querySelectorAll('.asset-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              document.querySelectorAll('.asset-category-btn').forEach(b => {
+                b.classList.remove('bg-blue-500', 'text-white');
+                b.classList.add('text-gray-600', 'hover:bg-gray-100');
+              });
+              e.target.classList.add('bg-blue-500', 'text-white');
+              e.target.classList.remove('text-gray-600', 'hover:bg-gray-100');
+              
+              state.currentCategory = e.target.getAttribute('data-category');
+              filterAssets();
+            });
+          });
+    
+          // 标志搜索
+          assetSearchInput.addEventListener('input', filterAssets);
+    
+          // 标志点击添加
+          assetListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.asset-card');
+            if (card && card.getAttribute('data-type') === 'image') {
+              const src = card.getAttribute('data-src');
+              addAssetToCanvas(src);
+            }
+          });
+    
+          // 画布尺寸应用
+          applySizeBtn.addEventListener('click', applyCanvasSize);
+    
+          // 导出按钮
+          exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportOptions.classList.toggle('hidden');
+          });
+    
+          document.addEventListener('click', () => {
+            exportOptions.classList.add('hidden');
+          });
+    
+          exportOptions.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const format = btn.getAttribute('data-format');
+              exportCanvas(format);
+              exportOptions.classList.add('hidden');
+            });
+          });
+        }
+    
+        // 启动
+        window.addEventListener('DOMContentLoaded', init);
+      </script>
+
+</body>
+</html>
