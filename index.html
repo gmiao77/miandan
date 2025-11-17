@@ -230,19 +230,32 @@
 
 
     <script>
-        // NEW: 对应 templates/text.json 的模板 ID 和路径
+        // 对应 templates/text.json 的模板 ID
         const TEXT_TEMPLATE_ID = 'text-template'; 
         const TEXT_TEMPLATE_PATH = './templates/text.json';
 
-        // NEW: text.json 对应的元数据 (用于模板列表展示)
-        // 确保 path 对应到实际的文件路径
+        // 模拟 text.json 文件的内容 (因为它在实际文件系统中可能不存在)
+        // 用户可以根据这个结构创建 text.json 文件
+        const TEXT_JSON_CONTENT = {
+            elements: [
+                {
+                    type: 'text',
+                    position: { x: 0, y: 0 }, // 初始位置不重要，loadTemplateToCanvas 会计算居中
+                    content: 'This is a text area', // 用户要求的内置文字内容
+                    style: { fontSize: 14, fontWeight: 'normal', color: '#000' },
+                    editable: true
+                }
+            ]
+        };
+
+        // text.json 对应的元数据 (用于模板列表展示)
         const TEXT_TEMPLATE_META = {
             id: TEXT_TEMPLATE_ID,
             name: '内置文本框',
             description: '点击插入一个可移动、可编辑的文本框。',
             thumbnail: 'https://via.placeholder.com/100x75/007bff/ffffff?text=Text+Box', 
             path: TEXT_TEMPLATE_PATH, 
-            size: { width: 210, height: 148, unit: 'mm' } 
+            size: { width: 210, height: 148, unit: 'mm' } // 插入时的默认画布尺寸 (A5)
         };
 
         const state = {
@@ -254,12 +267,13 @@
           repoName: 'miandan' // 你的仓库名称
         };
     
+        // UPDATED: 资产分类 (移除 '文本' 类别)
         const assetCategories = [
           '代理', '法国标', '化妆品', '能效', 
           '纽扣电池', '西班牙回收', '窒息警告', '其他'
         ];
     
-        // DOM元素 (保持不变)
+        // DOM元素
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvasContainer');
         const canvasWidthInput = document.getElementById('canvasWidth');
@@ -275,11 +289,12 @@
         const assetTab = document.getElementById('assetTab');
         const templateLibrary = document.getElementById('templateLibrary');
         const assetLibrary = document.getElementById('assetLibrary');
+        // NEW: 属性面板DOM
         const propertyPanel = document.getElementById('propertyPanel');
         const fontSizeSelect = document.getElementById('fontSizeSelect');
-        let selectedTextElement = null; 
+        let selectedTextElement = null; // 跟踪当前选中的文本元素
     
-        // 像素到毫米的转换因子 (保持不变)
+        // 像素到毫米的转换因子 (1px ≈ 0.264583mm, 1mm ≈ 3.779528px)
         const MM_TO_PX = 3.779528;
         const PX_TO_MM = 0.264583;
     
@@ -289,12 +304,12 @@
             loadTemplateMetadata(),
             loadAllAssets()
           ]);
-          populateFontSizeOptions(); 
+          populateFontSizeOptions(); // 填充字号选项
           initEventListeners();
-          initInteractJs(); 
+          initInteractJs(); // 初始化interact.js
         }
 
-        // 填充字号选项 (保持不变)
+        // 填充字号选项
         function populateFontSizeOptions() {
             for (let i = 8; i <= 36; i += 2) {
                 const option = document.createElement('option');
@@ -304,7 +319,7 @@
             }
         }
     
-        // 加载模板元数据 (更新：将 text.json 元数据放在首位)
+        // 加载模板元数据 (新增 text.json 元数据)
         async function loadTemplateMetadata() {
           try {
             // 尝试加载远程模板元数据
@@ -330,6 +345,7 @@
           try {
             const allAssets = [];
             
+            // 1. 加载图片资产
             for (const category of assetCategories) {
               for (let i = 1; i <= 10; i++) {
                 const src = `/${state.repoName}/assets/images/${category}/${category}${i}.jpg`;
@@ -368,7 +384,7 @@
           });
         }
     
-        // 渲染模板列表 (保持不变)
+        // 渲染模板列表
         function renderTemplateList(templates) {
           if (templates.length === 0) {
             templateListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无合规模板数据</div>';
@@ -416,6 +432,7 @@
                 <h3 class="text-sm font-medium text-gray-700 mb-2">${category}</h3>
                 <div class="grid grid-cols-2 gap-2">
                   ${assetsByCategory[category].map(asset => {
+                      // 渲染图片资产卡片
                       return `
                         <div class="asset-card" data-id="${asset.id}" data-type="image" data-src="${asset.src}" data-category="${asset.category}">
                             <div class="bg-gray-100 rounded overflow-hidden aspect-square">
@@ -432,7 +449,7 @@
           assetListEl.innerHTML = html;
         }
     
-        // 添加标志到画布 (保持不变)
+        // 添加标志到画布 (仅用于图片，保持不变)
         function addAssetToCanvas(src) {
           if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
             canvas.innerHTML = '';
@@ -477,13 +494,13 @@
           
           wrapper.classList.add('selected');
           setupInteractForElement(wrapper); 
-          showPropertyPanel(null); 
+          showPropertyPanel(null); // 插入图片时隐藏文本面板
         }
     
         // 渲染模板元素 (保持不变)
         function renderTemplateElements(elements) {
           canvas.innerHTML = '';
-          showPropertyPanel(null); 
+          showPropertyPanel(null); // 切换模板时隐藏属性面板
           
           let firstElement = null;
 
@@ -505,18 +522,21 @@
             
             if (domElement) {
               canvas.appendChild(domElement);
+              // 设置交互，确保文本元素也可以拖动
               if (element.type === 'image' || element.type === 'rect' || element.type === 'text') { 
                 setupInteractForElement(domElement); 
               }
+              // 初始化拖动数据
               domElement.setAttribute('data-x', domElement.offsetLeft);
               domElement.setAttribute('data-y', domElement.offsetTop);
 
               if (!firstElement) {
-                firstElement = domElement; 
+                firstElement = domElement; // 存储第一个元素
               }
             }
           });
           
+          // 渲染完成后，选中第一个元素 (适用于文本框模板)
           if (firstElement) {
               document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
               firstElement.classList.add('selected');
@@ -733,60 +753,59 @@
             }
         }
     
-        // 加载模板到画布 (更新：通过 fetch 加载 JSON，并为 text.json 计算居中)
+        // 加载模板到画布 (更新以处理 text.json 模板)
         async function loadTemplateToCanvas(templateId) {
             const templateMeta = state.allTemplates.find(t => t.id === templateId);
             if (!templateMeta) return;
 
             let templateData;
+            let elementsToRender;
 
-            // 1. Fetch template data from the path
-            try {
-                // 确保 path 正确解析，这里假设相对路径 ./templates/xxx.json
-                const fetchPath = templateMeta.path.replace('./', `/${state.repoName}/`);
-                const response = await fetch(fetchPath);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch ${templateMeta.path}: ${response.statusText}`);
-                }
-                templateData = await response.json();
-            } catch (error) {
-                alert('加载模板详情失败，请检查文件路径（例如：templates/text.json）或网络连接。');
-                console.error('加载模板详情失败:', error);
-                return;
-            }
-
-            // 2. 设置画布尺寸
-            const canvasWidthMm = templateMeta.size.width;
-            const canvasHeightMm = templateMeta.size.height;
-            canvasWidthInput.value = canvasWidthMm;
-            canvasHeightInput.value = canvasHeightMm;
-            applyCanvasSize();
-            
-            let elementsToRender = templateData.elements;
-
-            // 3. 应用居中逻辑（仅针对内置文本框模板）
-            if (templateId === TEXT_TEMPLATE_ID && elementsToRender.length > 0) {
-                // 预估文本框默认宽度和高度，以便居中
-                const defaultTextWidthMm = 100;
-                const defaultTextHeightMm = 20;
-
-                // 计算居中位置
-                const centerX = canvasWidthMm / 2 - defaultTextWidthMm / 2;
-                const centerY = canvasHeightMm / 2 - defaultTextHeightMm / 2;
-
-                elementsToRender = elementsToRender.map(el => ({
+            if (templateId === TEXT_TEMPLATE_ID) {
+                // 1. 处理 text.json 模板 (从模拟内容加载)
+                templateData = TEXT_JSON_CONTENT;
+                
+                const width = templateMeta.size.width;
+                const height = templateMeta.size.height;
+                
+                // 计算居中位置 (假设文本框默认宽度 100mm, 高度 20mm)
+                elementsToRender = templateData.elements.map(el => ({
                     ...el,
                     position: { 
-                        x: centerX, 
-                        y: centerY 
+                        x: width / 2 - 50, 
+                        y: height / 2 - 10 
                     }
                 }));
+
+                // 设置画布尺寸
+                canvasWidthInput.value = width;
+                canvasHeightInput.value = height;
+                applyCanvasSize();
+
+            } else {
+                // 2. 处理外部模板 JSON (从路径加载)
+                try {
+                    // path 是 ./templates/xxx.json，需要替换前缀以确保相对路径正确
+                    const response = await fetch(templateMeta.path.replace('./', `/${state.repoName}/`));
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    templateData = await response.json();
+                    elementsToRender = templateData.elements;
+                } catch (error) {
+                    alert('加载模板详情失败，请检查文件路径: ' + templateMeta.path);
+                    console.error('加载模板详情失败:', error);
+                    return;
+                }
+                
+                // 设置画布尺寸 (使用模板尺寸)
+                canvasWidthInput.value = templateMeta.size.width;
+                canvasHeightInput.value = templateMeta.size.height;
+                applyCanvasSize();
             }
             
-            // 4. 清空画布并渲染元素
+            // 清空画布并渲染元素
             renderTemplateElements(elementsToRender); 
 
-            // 5. 选中当前模板卡片
+            // 选中当前模板卡片
             document.querySelectorAll('.template-card').forEach(card => card.classList.remove('active'));
             document.querySelector(`.template-card[data-id="${templateId}"]`).classList.add('active');
         }
@@ -950,7 +969,7 @@
           // 标志搜索
           assetSearchInput.addEventListener('input', filterAssets);
     
-          // 标志点击添加
+          // 标志点击添加 (仅图片)
           assetListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.asset-card');
             if (card && card.getAttribute('data-type') === 'image') {
