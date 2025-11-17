@@ -214,7 +214,7 @@
     </div>
   </div>
 
-  <script>
+<script>
     const state = {
       currentTemplate: null,
       allTemplates: [],
@@ -562,70 +562,70 @@
     }
 
     // 初始化interact.js交互（核心功能）
-        function initInteractJs() {
-          // 使画布元素可拖拽
-          interact('.canvas-element')
-            .draggable({
-              inertia: true, 
-              modifiers: [
-                interact.modifiers.restrictRect({
-                  restriction: 'parent', 
-                  endOnly: true
-                })
-              ],
-              autoScroll: true,
-              // *** 核心修复点：忽略来自缩放手柄的拖拽事件 ***
-              ignoreFrom: '.resize-handle',
-              listeners: {
-                move(event) {
-                  const target = event.target;
-                  // 获取当前位置 (px)
-                  let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                  let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-    
-                  // 转换为毫米
-                  const mmX = x * PX_TO_MM;
-                  const mmY = y * PX_TO_MM;
-    
-                  // 更新位置
-                  target.style.left = `${mmX}mm`;
-                  target.style.top = `${mmY}mm`;
-    
-                  // 存储像素位置数据
-                  target.setAttribute('data-x', x);
-                  target.setAttribute('data-y', y);
-                }
-              }
+    function initInteractJs() {
+      // 使画布元素可拖拽
+      interact('.canvas-element')
+        .draggable({
+          inertia: true, 
+          modifiers: [
+            interact.modifiers.restrictRect({
+              restriction: 'parent', 
+              endOnly: true
             })
-            .on('down', function(event) {
-              // 确保点击手柄时，目标是父元素
-              const target = event.target.closest('.canvas-element'); 
-              if (!target) return;
-    
-              // 选中元素时高亮并显示缩放手柄
-              document.querySelectorAll('.canvas-element').forEach(el => {
-                el.classList.remove('selected');
-                // 清除旧的像素坐标，避免多次点击导致的坐标累加问题
-                el.removeAttribute('data-x');
-                el.removeAttribute('data-y');
-              });
-              
-              target.classList.add('selected');
-              
-              // 初始化 data-x 和 data-y 为当前元素的像素位置
-              target.setAttribute('data-x', target.offsetLeft);
-              target.setAttribute('data-y', target.offsetTop);
-            });
-    
-          // 点击画布空白处取消选中
-          interact('#canvas').on('down', function(event) {
-            if (event.target === canvas) {
-              document.querySelectorAll('.canvas-element').forEach(el => {
-                el.classList.remove('selected');
-              });
+          ],
+          autoScroll: true,
+          // *** 核心修复点：忽略来自缩放手柄的拖拽事件 ***
+          ignoreFrom: '.resize-handle',
+          listeners: {
+            move(event) {
+              const target = event.target;
+              // 获取当前位置 (px)
+              let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+              let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+
+              // 转换为毫米
+              const mmX = x * PX_TO_MM;
+              const mmY = y * PX_TO_MM;
+
+              // 更新位置
+              target.style.left = `${mmX}mm`;
+              target.style.top = `${mmY}mm`;
+
+              // 存储像素位置数据
+              target.setAttribute('data-x', x);
+              target.setAttribute('data-y', y);
             }
+          }
+        })
+        .on('down', function(event) {
+          // 确保点击手柄时，目标是父元素
+          const target = event.target.closest('.canvas-element'); 
+          if (!target) return;
+
+          // 选中元素时高亮并显示缩放手柄
+          document.querySelectorAll('.canvas-element').forEach(el => {
+            el.classList.remove('selected');
+            // 清除旧的像素坐标，避免多次点击导致的坐标累加问题
+            el.removeAttribute('data-x');
+            el.removeAttribute('data-y');
+          });
+          
+          target.classList.add('selected');
+          
+          // 初始化 data-x 和 data-y 为当前元素的像素位置
+          target.setAttribute('data-x', target.offsetLeft);
+          target.setAttribute('data-y', target.offsetTop);
+        });
+
+      // 点击画布空白处取消选中
+      interact('#canvas').on('down', function(event) {
+        if (event.target === canvas) {
+          document.querySelectorAll('.canvas-element').forEach(el => {
+            el.classList.remove('selected');
           });
         }
+      });
+    }
 
     // *** 核心修改 3: 为单个元素设置缩放功能 ***
     function setupInteractForElement(element, enableResize = true) {
@@ -687,6 +687,26 @@
       const height = parseInt(canvasHeightInput.value) || 148;
       canvasContainer.style.width = `${width}mm`;
       canvasContainer.style.height = `${height}mm`;
+    }
+
+    // *** 新增：删除选中元素的功能函数 ***
+    function deleteSelectedElement() {
+      // 找到当前选中的元素
+      const selectedElement = document.querySelector('.canvas-element.selected');
+      
+      // 如果找到了，则从 DOM 中移除
+      if (selectedElement) {
+        selectedElement.remove();
+        
+        // 如果画布变空，显示提示信息
+        if (canvas.children.length === 0) {
+            canvas.innerHTML = `
+              <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                请从左侧选择模板或标志添加到画布
+              </div>
+            `;
+        }
+      }
     }
 
     // 导出功能
@@ -752,6 +772,23 @@
 
     // 事件监听
     function initEventListeners() {
+      // *** 新增：监听 Delete 和 Backspace 键删除选中元素 ***
+      document.addEventListener('keydown', (e) => {
+        // 检查按键是否是 Delete (keyCode 46) 或 Backspace (keyCode 8)
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          // 确保当前焦点不在文本输入框（如搜索框）或 contentEditable 元素内
+          const focusedElement = document.activeElement;
+          const isInputFocused = (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA');
+          const isEditable = focusedElement.hasAttribute('contenteditable') && focusedElement.getAttribute('contenteditable') === 'true';
+
+          // 如果焦点不在输入框或编辑区，则执行删除操作
+          if (!isInputFocused && !isEditable) {
+            e.preventDefault(); // 阻止浏览器默认行为（如返回上一页）
+            deleteSelectedElement();
+          }
+        }
+      });
+
       // 标签页切换
       templateTab.addEventListener('click', () => {
         templateLibrary.classList.remove('hidden');
@@ -841,4 +878,7 @@
   </script>
 </body>
 </html>
+</body>
+</html>
+
 
