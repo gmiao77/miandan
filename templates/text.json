@@ -1,0 +1,22 @@
+{
+  "name": "内置文本框",
+  "description": "一个可编辑的、居中插入的文本元素。",
+  "size": { 
+    "width": 210, 
+    "height": 148, 
+    "unit": "mm" 
+  },
+  "elements": [
+    {
+      "type": "text",
+      "position": { "x": 0, "y": 0 },
+      "content": "This is a text area",
+      "style": { 
+        "fontSize": 14, 
+        "fontWeight": "normal", 
+        "color": "#000" 
+      },
+      "editable": true
+    }
+  ]
+}
