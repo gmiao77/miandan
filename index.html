@@ -562,69 +562,70 @@
     }
 
     // 初始化interact.js交互（核心功能）
-    function initInteractJs() {
-      // 使画布元素可拖拽
-      interact('.canvas-element')
-        .draggable({
-          inertia: true, 
-          modifiers: [
-            interact.modifiers.restrictRect({
-              restriction: 'parent', 
-              endOnly: true
+        function initInteractJs() {
+          // 使画布元素可拖拽
+          interact('.canvas-element')
+            .draggable({
+              inertia: true, 
+              modifiers: [
+                interact.modifiers.restrictRect({
+                  restriction: 'parent', 
+                  endOnly: true
+                })
+              ],
+              autoScroll: true,
+              // *** 核心修复点：忽略来自缩放手柄的拖拽事件 ***
+              ignoreFrom: '.resize-handle',
+              listeners: {
+                move(event) {
+                  const target = event.target;
+                  // 获取当前位置 (px)
+                  let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                  let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+    
+                  // 转换为毫米
+                  const mmX = x * PX_TO_MM;
+                  const mmY = y * PX_TO_MM;
+    
+                  // 更新位置
+                  target.style.left = `${mmX}mm`;
+                  target.style.top = `${mmY}mm`;
+    
+                  // 存储像素位置数据
+                  target.setAttribute('data-x', x);
+                  target.setAttribute('data-y', y);
+                }
+              }
             })
-          ],
-          autoScroll: true,
-          listeners: {
-            move(event) {
-              const target = event.target;
-              // 获取当前位置 (px)
-              let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-              let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-
-              // 转换为毫米
-              const mmX = x * PX_TO_MM;
-              const mmY = y * PX_TO_MM;
-
-              // 更新位置
-              target.style.left = `${mmX}mm`;
-              target.style.top = `${mmY}mm`;
-
-              // 存储像素位置数据
-              target.setAttribute('data-x', x);
-              target.setAttribute('data-y', y);
+            .on('down', function(event) {
+              // 确保点击手柄时，目标是父元素
+              const target = event.target.closest('.canvas-element'); 
+              if (!target) return;
+    
+              // 选中元素时高亮并显示缩放手柄
+              document.querySelectorAll('.canvas-element').forEach(el => {
+                el.classList.remove('selected');
+                // 清除旧的像素坐标，避免多次点击导致的坐标累加问题
+                el.removeAttribute('data-x');
+                el.removeAttribute('data-y');
+              });
+              
+              target.classList.add('selected');
+              
+              // 初始化 data-x 和 data-y 为当前元素的像素位置
+              target.setAttribute('data-x', target.offsetLeft);
+              target.setAttribute('data-y', target.offsetTop);
+            });
+    
+          // 点击画布空白处取消选中
+          interact('#canvas').on('down', function(event) {
+            if (event.target === canvas) {
+              document.querySelectorAll('.canvas-element').forEach(el => {
+                el.classList.remove('selected');
+              });
             }
-          }
-        })
-        .on('down', function(event) {
-          // 确保点击手柄时，目标是父元素
-          const target = event.target.closest('.canvas-element'); 
-          if (!target) return;
-
-          // 选中元素时高亮并显示缩放手柄
-          document.querySelectorAll('.canvas-element').forEach(el => {
-            el.classList.remove('selected');
-            // 清除旧的像素坐标，避免多次点击导致的坐标累加问题
-            el.removeAttribute('data-x');
-            el.removeAttribute('data-y');
-          });
-          
-          target.classList.add('selected');
-          
-          // 初始化 data-x 和 data-y 为当前元素的像素位置
-          // offsetLeft/Top 返回相对于父容器的像素位置
-          target.setAttribute('data-x', target.offsetLeft);
-          target.setAttribute('data-y', target.offsetTop);
-        });
-
-      // 点击画布空白处取消选中
-      interact('#canvas').on('down', function(event) {
-        if (event.target === canvas) {
-          document.querySelectorAll('.canvas-element').forEach(el => {
-            el.classList.remove('selected');
           });
         }
-      });
-    }
 
     // *** 核心修改 3: 为单个元素设置缩放功能 ***
     function setupInteractForElement(element, enableResize = true) {
@@ -840,3 +841,4 @@
   </script>
 </body>
 </html>
+
