@@ -30,8 +30,8 @@
       }
       .canvas-container {
         @apply border border-gray-300 rounded-md bg-white relative overflow-hidden;
-        /* 关键：将缩放中心设置为左上角，然后通过定位来居中 */
-        transform-origin: 0 0; 
+        /* 确保缩放中心在画布中心 */
+        transform-origin: center center;
       }
       .canvas-element {
         @apply absolute select-none;
@@ -66,6 +66,9 @@
         height: 100%;
         object-fit: contain;
       }
+      /* 新增：拖拽光标样式 */
+      .cursor-grab { cursor: grab; }
+      .cursor-grabbing { cursor: grabbing; }
     }
   </style>
 </head>
@@ -193,22 +196,24 @@
       </div>
     </div>
     
-    <div class="flex-1 p-6 overflow-auto bg-gray-50">
-      <div class="w-full flex flex-col items-center"> 
-        
-        <div id="canvasWrapper" class="relative"> 
-          
-          <div id="canvasContainer" class="canvas-container transition-all duration-300" 
-               style="width: 210mm; height: 148mm; position: absolute;"> 
-            <div id="canvas" class="w-full h-full relative">
-              <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
-                请从左侧选择模板或标志添加到画布
-              </div>
+    <div id="canvasViewport" class="flex-1 p-6 overflow-auto bg-gray-50 relative">
+        <div id="canvasDragWrapper" class="absolute cursor-grab"
+             style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+             
+            <div id="canvasContainer" class="canvas-container transition-all duration-300" 
+                 style="width: 210mm; height: 148mm; transform: scale(1);">
+                <div id="canvas" class="w-full h-full relative">
+                    <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                        请从左侧选择模板或标志添加到画布
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-        
-        <div class="mt-6 w-full max-w-4xl flex justify-end">
+    </div>
+    
+    <div class="p-6 pt-0">
+      <div class="max-w-4xl mx-auto">
+        <div class="mt-6 flex justify-end">
           <div class="relative inline-block">
             <button id="exportBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
               导出合规面单 <i class="fa fa-download ml-1"></i>
@@ -226,8 +231,6 @@
             </div>
           </div>
         </div>
-        
-        <div class="h-10"></div>
       </div>
     </div>
   </div>
@@ -240,7 +243,9 @@
       filteredAssets: [],
       currentCategory: 'all',
       repoName: 'miandan', // 你的仓库名称
-      canvasZoom: 1.0 // 画布缩放比例 (1.0 = 100%)
+      canvasZoom: 1.0, // *** 画布缩放比例 (1.0 = 100%) ***
+      panX: 0, // *** 新增：画布平移的X偏移量 (px) ***
+      panY: 0  // *** 新增：画布平移的Y偏移量 (px) ***
     };
 
     const assetCategories = [
@@ -251,8 +256,6 @@
     // DOM元素
     const canvas = document.getElementById('canvas');
     const canvasContainer = document.getElementById('canvasContainer');
-    // *** 新增 DOM 元素 ***
-    const canvasWrapper = document.getElementById('canvasWrapper'); 
     const canvasWidthInput = document.getElementById('canvasWidth');
     const canvasHeightInput = document.getElementById('canvasHeight');
     const applySizeBtn = document.getElementById('applySizeBtn');
@@ -266,8 +269,11 @@
     const assetTab = document.getElementById('assetTab');
     const templateLibrary = document.getElementById('templateLibrary');
     const assetLibrary = document.getElementById('assetLibrary');
+    // *** 新增/更新 DOM 元素 ***
     const zoomSlider = document.getElementById('zoomSlider');
     const zoomPercentage = document.getElementById('zoomPercentage');
+    const canvasViewport = document.getElementById('canvasViewport'); 
+    const canvasDragWrapper = document.getElementById('canvasDragWrapper');
 
     // 像素到毫米的转换因子 (1px ≈ 0.264583mm, 1mm ≈ 3.779528px)
     const MM_TO_PX = 3.779528;
@@ -288,46 +294,26 @@
     function zoomCanvas(zoomLevel) {
       const scaleFactor = zoomLevel / 100;
       state.canvasZoom = scaleFactor; 
-      zoomPercentage.textContent = `${zoomLevel}%`;
-      
-      const baseWidthMm = parseInt(canvasWidthInput.value) || 210;
-      const baseHeightMm = parseInt(canvasHeightInput.value) || 148;
-      
-      const originalWidthPx = baseWidthMm * MM_TO_PX;
-      const originalHeightPx = baseHeightMm * MM_TO_PX;
-      
-      // 1. 设置 #canvasWrapper 的布局尺寸 (像素)，用于触发滚动条
-      const scaledWidthPx = originalWidthPx * scaleFactor;
-      const scaledHeightPx = originalHeightPx * scaleFactor;
-      
-      canvasWrapper.style.width = `${scaledWidthPx}px`;
-      canvasWrapper.style.height = `${scaledHeightPx}px`;
-
-      // 2. 视觉缩放：应用 transform 到 #canvasContainer
       canvasContainer.style.transform = `scale(${state.canvasZoom})`;
-      
-      // 3. 居中/定位 #canvasContainer：
-      // 因为 transform-origin 设置为 0 0，但我们希望它从中心缩放，所以需要计算偏移量来抵消缩放导致的移动。
-      // 偏移量 = (原始尺寸 * (缩放因子 - 1)) / 2
-      const offset_x = originalWidthPx * (scaleFactor - 1) / 2;
-      const offset_y = originalHeightPx * (scaleFactor - 1) / 2;
-      
-      // 调整 #canvasContainer 的位置，使其在 #canvasWrapper 中视觉居中
-      canvasContainer.style.left = `${-offset_x}px`;
-      canvasContainer.style.top = `${-offset_y}px`;
+      zoomPercentage.textContent = `${zoomLevel}%`;
     }
 
-    // 画布尺寸调整 (Modified to update both wrapper and container)
+    // 画布尺寸调整 (Modified to also apply initial scale and origin)
     function applyCanvasSize() {
       const width = parseInt(canvasWidthInput.value) || 210;
       const height = parseInt(canvasHeightInput.value) || 148;
       
-      // 1. 设置 #canvasContainer 的原始布局尺寸（毫米）
+      // 设置实际的布局尺寸（毫米）
       canvasContainer.style.width = `${width}mm`;
       canvasContainer.style.height = `${height}mm`;
 
-      // 2. 重新应用当前的缩放比例到布局和定位
-      zoomCanvas(state.canvasZoom * 100);
+      // 重新应用当前的缩放比例
+      canvasContainer.style.transform = `scale(${state.canvasZoom})`;
+
+      // *** 重置平移位置，确保画布居中 ***
+      state.panX = 0;
+      state.panY = 0;
+      canvasDragWrapper.style.transform = `translate(-50%, -50%)`;
     }
 
     // 加载模板元数据
@@ -506,11 +492,11 @@
 
       // 默认位置和尺寸 (50mm x 50mm)
       const defaultSizeMm = 50;
-      const canvasWidthMm = parseInt(canvasContainer.style.width) || 210;
-      const canvasHeightMm = parseInt(canvasContainer.style.height) || 148;
+      const canvasWidth = parseFloat(canvasContainer.style.width);
+      const canvasHeight = parseFloat(canvasContainer.style.height);
       
-      wrapper.style.left = `${(canvasWidthMm - defaultSizeMm) / 2}mm`;
-      wrapper.style.top = `${(canvasHeightMm - defaultSizeMm) / 2}mm`;
+      wrapper.style.left = `${(canvasWidth - defaultSizeMm) / 2}mm`;
+      wrapper.style.top = `${(canvasHeight - defaultSizeMm) / 2}mm`;
       wrapper.style.width = `${defaultSizeMm}mm`;
       wrapper.style.height = `${defaultSizeMm}mm`;
       
@@ -633,6 +619,29 @@
 
     // 初始化interact.js交互（核心功能）
     function initInteractJs() {
+      // *** 新增：使画布拖拽容器可平移 (Panning) ***
+      interact('#canvasDragWrapper').draggable({
+          inertia: false,
+          listeners: {
+              move(event) {
+                  state.panX += event.dx;
+                  state.panY += event.dy;
+                  
+                  // 使用 CSS translate(calc(-50% + Xpx), calc(-50% + Ypx)) 
+                  // 保持相对于视口中心的平移
+                  event.target.style.transform = `translate(calc(-50% + ${state.panX}px), calc(-50% + ${state.panY}px))`;
+              },
+              start (event) {
+                  event.target.classList.remove('cursor-grab');
+                  event.target.classList.add('cursor-grabbing');
+              },
+              end (event) {
+                  event.target.classList.remove('cursor-grabbing');
+                  event.target.classList.add('cursor-grab');
+              }
+          }
+      });
+      
       // 使画布元素可拖拽
       interact('.canvas-element')
         .draggable({
@@ -689,6 +698,7 @@
 
       // 点击画布空白处取消选中
       interact('#canvas').on('down', function(event) {
+        // 如果点击的目标是 canvas 元素本身 (而不是 canvas-element 或 canvasDragWrapper)
         if (event.target === canvas) {
           document.querySelectorAll('.canvas-element').forEach(el => {
             el.classList.remove('selected');
@@ -783,26 +793,16 @@
         el.classList.remove('selected');
       });
       
-      // 暂时重置缩放以确保 html2canvas 捕获原始尺寸
+      // 暂时重置缩放以确保 html2canvas 捕获原始尺寸 (应用在 canvasContainer 上)
       const originalScale = state.canvasZoom;
-      // 恢复到 1:1 视觉比例
       canvasContainer.style.transform = `scale(1)`;
-      // 恢复到 1:1 布局尺寸
-      const originalWidthMm = parseInt(canvasWidthInput.value) || 210;
-      const originalHeightMm = parseInt(canvasHeightInput.value) || 148;
-      canvasWrapper.style.width = `${originalWidthMm * MM_TO_PX}px`;
-      canvasWrapper.style.height = `${originalHeightMm * MM_TO_PX}px`;
-      // 恢复定位
-      canvasContainer.style.left = `0px`;
-      canvasContainer.style.top = `0px`;
-
 
       html2canvas(canvas, {
         scale: 2, // 提高分辨率
         useCORS: true // 允许跨域图片
       }).then(canvasImage => {
-        // 恢复缩放和定位
-        zoomCanvas(originalScale * 100);
+        // 恢复缩放
+        canvasContainer.style.transform = `scale(${originalScale})`;
         
         const imgData = canvasImage.toDataURL('image/png');
         
@@ -812,13 +812,13 @@
         if (format === 'pdf') {
           const { jsPDF } = window.jspdf;
           const pdf = new jsPDF({
-            orientation: originalWidthMm > originalHeightMm ? 'l' : 'p',
+            orientation: canvasWidthInput.value > canvasHeightInput.value ? 'l' : 'p',
             unit: 'mm',
             // 确保 PDF 尺寸与画布尺寸一致
-            format: [originalWidthMm, originalHeightMm]
+            format: [parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value)]
           });
           // 将图片添加到 PDF，0, 0 为起始位置，宽高与画布尺寸相同
-          pdf.addImage(imgData, 'PNG', 0, 0, originalWidthMm, originalHeightMm);
+          pdf.addImage(imgData, 'PNG', 0, 0, parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value));
           pdf.save('跨境物流合规面单.pdf');
         } else {
           const link = document.createElement('a');
