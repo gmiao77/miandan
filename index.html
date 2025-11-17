@@ -230,21 +230,32 @@
 
 
     <script>
-        // NEW: 内置文本模板数据，模拟 txt.json 内容
-        const BUILTIN_TEXT_TEMPLATE_ID = 'builtin-text-box';
-        const BUILTIN_TEXT_TEMPLATE_DATA = {
-            name: '内置文本框',
-            description: '点击插入一个可移动、可编辑的文本框。',
-            size: { width: 100, height: 30, unit: 'mm' }, // 默认尺寸
+        // 对应 templates/text.json 的模板 ID
+        const TEXT_TEMPLATE_ID = 'text-template'; 
+        const TEXT_TEMPLATE_PATH = './templates/text.json';
+
+        // 模拟 text.json 文件的内容 (因为它在实际文件系统中可能不存在)
+        // 用户可以根据这个结构创建 text.json 文件
+        const TEXT_JSON_CONTENT = {
             elements: [
                 {
                     type: 'text',
-                    position: { x: 10, y: 10 },
+                    position: { x: 0, y: 0 }, // 初始位置不重要，loadTemplateToCanvas 会计算居中
                     content: 'This is a text area', // 用户要求的内置文字内容
                     style: { fontSize: 14, fontWeight: 'normal', color: '#000' },
                     editable: true
                 }
             ]
+        };
+
+        // text.json 对应的元数据 (用于模板列表展示)
+        const TEXT_TEMPLATE_META = {
+            id: TEXT_TEMPLATE_ID,
+            name: '内置文本框',
+            description: '点击插入一个可移动、可编辑的文本框。',
+            thumbnail: 'https://via.placeholder.com/100x75/007bff/ffffff?text=Text+Box', 
+            path: TEXT_TEMPLATE_PATH, 
+            size: { width: 210, height: 148, unit: 'mm' } // 插入时的默认画布尺寸 (A5)
         };
 
         const state = {
@@ -293,12 +304,12 @@
             loadTemplateMetadata(),
             loadAllAssets()
           ]);
-          populateFontSizeOptions(); // NEW: 填充字号选项
+          populateFontSizeOptions(); // 填充字号选项
           initEventListeners();
           initInteractJs(); // 初始化interact.js
         }
 
-        // NEW: 填充字号选项
+        // 填充字号选项
         function populateFontSizeOptions() {
             for (let i = 8; i <= 36; i += 2) {
                 const option = document.createElement('option');
@@ -308,32 +319,28 @@
             }
         }
     
-        // 加载模板元数据 (新增内置文本模板)
+        // 加载模板元数据 (新增 text.json 元数据)
         async function loadTemplateMetadata() {
           try {
+            // 尝试加载远程模板元数据
             const response = await fetch(`/${state.repoName}/templates/metadata.json`);
             const data = await response.json();
             let templates = data.templates;
 
-            // NEW: 添加内置文本模板到列表的开头
-            templates.unshift({
-                id: BUILTIN_TEXT_TEMPLATE_ID,
-                name: BUILTIN_TEXT_TEMPLATE_DATA.name,
-                description: BUILTIN_TEXT_TEMPLATE_DATA.description,
-                thumbnail: 'https://via.placeholder.com/100x75/007bff/ffffff?text=Text+Box', // 占位图
-                path: `/${state.repoName}/templates/builtin_text.json`, // 模拟的 json 路径
-                size: BUILTIN_TEXT_TEMPLATE_DATA.size
-            });
+            // 1. 添加内置文本模板到列表的开头
+            templates.unshift(TEXT_TEMPLATE_META);
 
             state.allTemplates = templates;
             renderTemplateList(templates);
           } catch (error) {
-            templateListEl.innerHTML = '<div class="text-center text-red-500 py-10">模板加载失败</div>';
-            console.error('模板元数据加载失败：', error);
+            // 如果远程加载失败，至少显示内置文本模板
+            state.allTemplates = [TEXT_TEMPLATE_META];
+            renderTemplateList(state.allTemplates);
+            console.error('模板元数据加载失败，仅显示内置文本模板：', error);
           }
         }
     
-        // 加载标志资源 (移除文本资产加载)
+        // 加载标志资源 (保持不变)
         async function loadAllAssets() {
           try {
             const allAssets = [];
@@ -366,7 +373,7 @@
           }
         }
     
-        // 检查图片是否存在
+        // 检查图片是否存在 (保持不变)
         function checkImageExists(src) {
           return new Promise(resolve => {
             const img = new Image();
@@ -385,623 +392,11 @@
           }
     
           templateListEl.innerHTML = templates.map(template => {
-            // 为内置文本框设置特殊的图标或样式
-            const isTextBox = template.id === BUILTIN_TEXT_TEMPLATE_ID;
+            const isTextBox = template.id === TEXT_TEMPLATE_ID;
             
             return `
                 <div class="template-card ${isTextBox ? 'border-blue-300 bg-blue-50' : ''}" data-id="${template.id}">
                     <div class="aspect-[4/3] ${isTextBox ? 'bg-blue-100 flex items-center justify-center' : 'bg-gray-100'} rounded overflow-hidden mb-2">
                         ${isTextBox 
                             ? `<i class="fa fa-font text-blue-600 text-3xl"></i>` 
-                            : `<img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-full h-full object-cover">`
-                        }
-                    </div>
-                    <h3 class="text-sm font-medium text-gray-800">${template.name}</h3>
-                    <p class="text-xs text-gray-500">${template.description}</p>
-                    <p class="text-xs text-gray-400 mt-1">${template.size.width}×${template.size.height}${template.size.unit}</p>
-                </div>
-            `;
-          }).join('');
-        }
-    
-        // 渲染标志列表 (仅处理图片)
-        function renderAssetList(assets) {
-          if (assets.length === 0) {
-            assetListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无标志数据</div>';
-            return;
-          }
-    
-          const assetsByCategory = {};
-          assets.forEach(asset => {
-            if (!assetsByCategory[asset.category]) {
-              assetsByCategory[asset.category] = [];
-            }
-            assetsByCategory[asset.category].push(asset);
-          });
-    
-          let html = '';
-          for (const category in assetsByCategory) {
-            html += `
-              <div class="mb-4">
-                <h3 class="text-sm font-medium text-gray-700 mb-2">${category}</h3>
-                <div class="grid grid-cols-2 gap-2">
-                  ${assetsByCategory[category].map(asset => {
-                      // 渲染图片资产卡片
-                      return `
-                        <div class="asset-card" data-id="${asset.id}" data-type="image" data-src="${asset.src}" data-category="${asset.category}">
-                            <div class="bg-gray-100 rounded overflow-hidden aspect-square">
-                                <img src="${asset.src}" alt="${asset.name}" class="w-full h-full object-contain p-1">
-                            </div>
-                            <p class="text-xs text-center mt-1 text-gray-600">${asset.name}</p>
-                        </div>
-                      `;
-                  }).join('')}
-                </div>
-              </div>
-            `;
-          }
-          assetListEl.innerHTML = html;
-        }
-    
-        // 添加标志到画布 (仅用于图片，保持不变)
-        function addAssetToCanvas(src) {
-          if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
-            canvas.innerHTML = '';
-          }
-          
-          const elementId = `asset-${Date.now()}`;
-          const wrapper = document.createElement('div');
-          wrapper.id = elementId;
-          wrapper.className = 'canvas-element selected'; 
-          wrapper.dataset.type = 'image-wrapper';
-          
-          const img = document.createElement('img');
-          img.src = src;
-          img.alt = '合规标志';
-          img.onerror = () => {
-            img.src = 'https://via.placeholder.com/100?text=标志缺失';
-          };
-          
-          const handles = ['tl', 'tr', 'bl', 'br'];
-          handles.forEach(pos => {
-            const handle = document.createElement('div');
-            handle.className = `resize-handle resize-handle-${pos}`;
-            wrapper.appendChild(handle);
-          });
-          
-          wrapper.appendChild(img);
-    
-          const defaultSizeMm = 50;
-          const canvasWidth = parseFloat(canvasContainer.style.width);
-          const canvasHeight = parseFloat(canvasContainer.style.height);
-          
-          wrapper.style.left = `${(canvasWidth - defaultSizeMm) / 2}mm`;
-          wrapper.style.top = `${(canvasHeight - defaultSizeMm) / 2}mm`;
-          wrapper.style.width = `${defaultSizeMm}mm`;
-          wrapper.style.height = `${defaultSizeMm}mm`;
-          
-          canvas.appendChild(wrapper);
-    
-          document.querySelectorAll('.canvas-element').forEach(el => {
-            if (el !== wrapper) el.classList.remove('selected');
-          });
-          
-          wrapper.classList.add('selected');
-          setupInteractForElement(wrapper); 
-          showPropertyPanel(null); // 插入图片时隐藏文本面板
-        }
-    
-        // 渲染模板元素
-        function renderTemplateElements(elements) {
-          canvas.innerHTML = '';
-          showPropertyPanel(null); // 切换模板时隐藏属性面板
-          
-          let firstElement = null;
-
-          elements.forEach((element, index) => {
-            const elementId = `element-${index}-${Date.now()}`;
-            let domElement;
-            
-            switch (element.type) {
-              case 'rect':
-                domElement = createRectElement(elementId, element);
-                break;
-              case 'text':
-                domElement = createTextElement(elementId, element);
-                break;
-              case 'image':
-                domElement = createImageElement(elementId, element);
-                break;
-            }
-            
-            if (domElement) {
-              canvas.appendChild(domElement);
-              // 设置交互，确保文本元素也可以拖动
-              if (element.type === 'image' || element.type === 'rect' || element.type === 'text') { 
-                setupInteractForElement(domElement); 
-              }
-              // 初始化拖动数据
-              domElement.setAttribute('data-x', domElement.offsetLeft);
-              domElement.setAttribute('data-y', domElement.offsetTop);
-
-              if (!firstElement) {
-                firstElement = domElement; // 存储第一个元素
-              }
-            }
-          });
-          
-          // 渲染完成后，选中第一个元素 (适用于文本框模板)
-          if (firstElement) {
-              document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
-              firstElement.classList.add('selected');
-              showPropertyPanel(firstElement);
-          }
-        }
-    
-        // 创建元素工具函数 (Rect 保持不变)
-        function createRectElement(id, element) {
-          const div = document.createElement('div');
-          div.id = id;
-          div.className = 'canvas-element';
-          div.dataset.type = 'rect';
-          
-          div.style.left = `${element.position.x}mm`;
-          div.style.top = `${element.position.y}mm`;
-          div.style.width = `${element.size.width}mm`;
-          div.style.height = `${element.size.height}mm`;
-          div.style.backgroundColor = element.style.fill || 'transparent';
-          div.style.border = `${element.style.strokeWidth || 1}px solid ${element.style.stroke || '#ddd'}`;
-
-          const handles = ['tl', 'tr', 'bl', 'br'];
-          handles.forEach(pos => {
-            const handle = document.createElement('div');
-            handle.className = `resize-handle resize-handle-${pos}`;
-            div.appendChild(handle);
-          });
-          
-          return div;
-        }
-    
-        // 创建文本元素工具函数 (Text 保持不变)
-        function createTextElement(id, element) {
-          const div = document.createElement('div');
-          div.id = id;
-          div.className = 'canvas-element';
-          div.dataset.type = 'text';
-          
-          div.style.left = `${element.position.x}mm`;
-          div.style.top = `${element.position.y}mm`;
-          div.style.fontSize = `${element.style.fontSize || 12}px`;
-          div.style.fontWeight = element.style.fontWeight || 'normal';
-          div.style.color = element.style.color || '#333';
-          div.style.whiteSpace = 'nowrap';
-          if (element.style.textAlign) div.style.textAlign = element.style.textAlign;
-          
-          div.innerText = element.content;
-          if (element.editable) {
-            div.contentEditable = true;
-            div.classList.add('editable');
-            div.setAttribute('title', '拖动移动，双击编辑');
-          }
-          
-          return div;
-        }
-    
-        // 创建图片元素工具函数 (Image 保持不变)
-        function createImageElement(id, element) {
-          const wrapper = document.createElement('div');
-          wrapper.id = id;
-          wrapper.className = 'canvas-element';
-          wrapper.dataset.type = 'image-wrapper'; 
-          
-          const img = document.createElement('img');
-          img.src = element.src.replace('./', `/${state.repoName}/`);
-          img.alt = '合规标志';
-          img.onerror = () => {
-            img.src = 'https://via.placeholder.com/60?text=标志缺失';
-          };
-          
-          wrapper.style.left = `${element.position.x}mm`;
-          wrapper.style.top = `${element.position.y}mm`;
-          wrapper.style.width = `${element.size.width}mm`;
-          wrapper.style.height = `${element.size.height}mm`;
-    
-          const handles = ['tl', 'tr', 'bl', 'br'];
-          handles.forEach(pos => {
-            const handle = document.createElement('div');
-            handle.className = `resize-handle resize-handle-${pos}`;
-            wrapper.appendChild(handle);
-          });
-          
-          wrapper.appendChild(img);
-          
-          return wrapper; 
-        }
-    
-        // 初始化interact.js交互
-        function initInteractJs() {
-          interact('.canvas-element')
-            .draggable({
-              inertia: true, 
-              modifiers: [
-                interact.modifiers.restrictRect({
-                  restriction: 'parent', 
-                  endOnly: true
-                })
-              ],
-              autoScroll: true,
-              // FIX: 允许文本元素被拖动，仅忽略缩放手柄
-              ignoreFrom: '.resize-handle', 
-              listeners: {
-                move(event) {
-                  const target = event.target;
-                  let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                  let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-    
-                  const mmX = x * PX_TO_MM;
-                  const mmY = y * PX_TO_MM;
-    
-                  target.style.left = `${mmX}mm`;
-                  target.style.top = `${mmY}mm`;
-    
-                  target.setAttribute('data-x', x);
-                  target.setAttribute('data-y', y);
-                }
-              }
-            })
-            .on('down', function(event) {
-              const target = event.target.closest('.canvas-element'); 
-              
-              if (!target) {
-                showPropertyPanel(null); // 如果点击空白处，隐藏面板
-                return;
-              }
-    
-              document.querySelectorAll('.canvas-element').forEach(el => {
-                el.classList.remove('selected');
-                el.removeAttribute('data-x'); 
-                el.removeAttribute('data-y');
-              });
-              
-              target.classList.add('selected');
-              
-              target.setAttribute('data-x', target.offsetLeft);
-              target.setAttribute('data-y', target.offsetTop);
-
-              showPropertyPanel(target); // 选中元素时显示属性面板
-            });
-    
-          interact('#canvas').on('down', function(event) {
-            if (event.target === canvas) {
-              document.querySelectorAll('.canvas-element').forEach(el => {
-                el.classList.remove('selected');
-              });
-              showPropertyPanel(null); // 点击画布背景时隐藏面板
-            }
-          });
-        }
-    
-        // 为单个元素设置缩放功能
-        function setupInteractForElement(element, enableResize = true) {
-          // 只有图片和矩形可以缩放
-          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect') && enableResize) {
-            interact(element).resizable({
-              inertia: true,
-              modifiers: [
-                interact.modifiers.restrictSize({
-                  min: { width: 10, height: 10 }
-                }),
-                interact.modifiers.restrictRect({
-                  restriction: 'parent', 
-                  endOnly: true
-                })
-              ],
-              edges: { 
-                left: '.resize-handle-tl, .resize-handle-bl', 
-                right: '.resize-handle-tr, .resize-handle-br', 
-                bottom: '.resize-handle-bl, .resize-handle-br', 
-                top: '.resize-handle-tl, .resize-handle-tr' 
-              },
-              listeners: {
-                move(event) {
-                  const target = event.target;
-                  
-                  let x = (parseFloat(target.getAttribute('data-x')) || 0);
-                  let y = (parseFloat(target.getAttribute('data-y')) || 0);
-                  
-                  x += event.deltaRect.left;
-                  y += event.deltaRect.top;
-    
-                  const mmWidth = event.rect.width * PX_TO_MM;
-                  const mmHeight = event.rect.height * PX_TO_MM;
-                  const mmX = x * PX_TO_MM;
-                  const mmY = y * PX_TO_MM;
-                  
-                  target.style.width = `${mmWidth}mm`;
-                  target.style.height = `${mmHeight}mm`;
-                  target.style.left = `${mmX}mm`;
-                  target.style.top = `${mmY}mm`;
-    
-                  target.setAttribute('data-x', x);
-                  target.setAttribute('data-y', y);
-                }
-              }
-            });
-          }
-        }
-        
-        // 显示/隐藏属性面板，并绑定选中元素
-        function showPropertyPanel(element) {
-            if (element && element.dataset.type === 'text') {
-                selectedTextElement = element;
-                // 读取当前字号并设置下拉框
-                const currentSize = parseFloat(element.style.fontSize) || 12;
-                fontSizeSelect.value = currentSize;
-                propertyPanel.classList.remove('hidden');
-            } else {
-                selectedTextElement = null;
-                propertyPanel.classList.add('hidden');
-            }
-        }
-
-        // 更新文本属性（字号）
-        function updateTextProperties() {
-            if (selectedTextElement) {
-                const newSize = fontSizeSelect.value;
-                selectedTextElement.style.fontSize = `${newSize}px`;
-            }
-        }
-    
-        // 加载模板到画布 (更新以处理内置文本)
-        async function loadTemplateToCanvas(templateId) {
-            const templateMeta = state.allTemplates.find(t => t.id === templateId);
-            if (!templateMeta) return;
-
-            let templateData;
-            let elementsToRender;
-
-            if (templateId === BUILTIN_TEXT_TEMPLATE_ID) {
-                // 1. 处理内置文本模板
-                templateData = BUILTIN_TEXT_TEMPLATE_DATA;
-                
-                // 计算居中位置
-                const defaultWidth = templateMeta.size.width;
-                const defaultHeight = templateMeta.size.height;
-                
-                elementsToRender = templateData.elements.map(el => ({
-                    ...el,
-                    position: { 
-                        x: defaultWidth / 2 - 50, // 假设文本框宽度100mm，居中
-                        y: defaultHeight / 2 - 10 // 假设文本框高度20mm，居中
-                    }
-                }));
-
-            } else {
-                // 2. 处理外部模板 JSON
-                try {
-                    const response = await fetch(templateMeta.path.replace('./', `/${state.repoName}/`));
-                    templateData = await response.json();
-                    elementsToRender = templateData.elements;
-                } catch (error) {
-                    alert('加载模板详情失败，请检查文件路径');
-                    console.error('加载模板详情失败:', error);
-                    return;
-                }
-            }
-            
-            // 设置画布尺寸 (即使是文本框也要设置，保持一致性)
-            const width = templateMeta.size.width;
-            const height = templateMeta.size.height;
-            canvasWidthInput.value = width;
-            canvasHeightInput.value = height;
-            applyCanvasSize();
-
-            // 清空画布并渲染元素
-            renderTemplateElements(elementsToRender); 
-
-            // 选中当前模板卡片
-            document.querySelectorAll('.template-card').forEach(card => card.classList.remove('active'));
-            document.querySelector(`.template-card[data-id="${templateId}"]`).classList.add('active');
-        }
-
-        // 画布尺寸调整
-        function applyCanvasSize() {
-          const width = parseInt(canvasWidthInput.value) || 210;
-          const height = parseInt(canvasHeightInput.value) || 148;
-          canvasContainer.style.width = `${width}mm`;
-          canvasContainer.style.height = `${height}mm`;
-        }
-    
-        // 删除选中元素的功能函数
-        function deleteSelectedElement() {
-          const selectedElement = document.querySelector('.canvas-element.selected');
-          
-          if (selectedElement) {
-            selectedElement.remove();
-            showPropertyPanel(null); // 删除后隐藏面板
-            
-            if (canvas.children.length === 0) {
-                canvas.innerHTML = `
-                  <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
-                    请从左侧选择模板或标志添加到画布
-                  </div>
-                `;
-            }
-          }
-        }
-    
-        // 导出功能
-        function exportCanvas(format) {
-          if (canvas.children.length === 0 || canvas.querySelector('.text-gray-400')) {
-            alert('请先选择并填写合规面单信息');
-            return;
-          }
-          
-          document.querySelectorAll('.canvas-element').forEach(el => {
-            el.classList.remove('selected');
-          });
-          showPropertyPanel(null); // 导出前隐藏面板
-    
-          html2canvas(canvas, {
-            scale: 2,
-            useCORS: true
-          }).then(canvasImage => {
-            const imgData = canvasImage.toDataURL('image/png');
-            
-            if (format === 'pdf') {
-              const { jsPDF } = window.jspdf;
-              const pdf = new jsPDF({
-                orientation: canvasWidthInput.value > canvasHeightInput.value ? 'l' : 'p',
-                unit: 'mm',
-                format: [parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value)]
-              });
-              pdf.addImage(imgData, 'PNG', 0, 0, parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value));
-              pdf.save('跨境物流合规面单.pdf');
-            } else {
-              const link = document.createElement('a');
-              link.download = `跨境物流合规面单.${format}`;
-              link.href = format === 'jpg' ? imgData.replace('image/png', 'image/jpeg') : imgData;
-              link.click();
-            }
-          });
-        }
-    
-        // 筛选标志
-        function filterAssets() {
-          const keyword = assetSearchInput.value.toLowerCase();
-          let filtered = state.allAssets;
-          
-          if (state.currentCategory !== 'all') {
-            filtered = filtered.filter(asset => asset.category === state.currentCategory);
-          }
-          
-          if (keyword) {
-            filtered = filtered.filter(asset => 
-              asset.name.toLowerCase().includes(keyword) || 
-              asset.category.toLowerCase().includes(keyword)
-            );
-          }
-          
-          state.filteredAssets = filtered;
-          renderAssetList(filtered);
-        }
-    
-        // 事件监听
-        function initEventListeners() {
-          // 监听 Delete 和 Backspace 键删除选中元素
-          document.addEventListener('keydown', (e) => {
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-              const focusedElement = document.activeElement;
-              const isInputFocused = (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA');
-              const isEditable = focusedElement.hasAttribute('contenteditable') && focusedElement.getAttribute('contenteditable') === 'true';
-    
-              if (!isInputFocused && !isEditable) {
-                e.preventDefault();
-                deleteSelectedElement();
-              }
-            }
-          });
-          
-          // 监听字号选择框变化
-          fontSizeSelect.addEventListener('change', updateTextProperties);
-          
-          // 监听全局点击，如果点击不在画布或属性面板内，则隐藏面板
-          document.addEventListener('click', (e) => {
-            // 仅当点击画布外的其他地方，且没有元素被选中时才隐藏面板
-            if (!e.target.closest('#canvas') && !e.target.closest('#propertyPanel')) {
-                if (!document.querySelector('.canvas-element.selected')) {
-                    showPropertyPanel(null); 
-                }
-            }
-          });
-    
-          // 标签页切换
-          templateTab.addEventListener('click', () => {
-            templateLibrary.classList.remove('hidden');
-            assetLibrary.classList.add('hidden');
-            templateTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-            assetTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-          });
-          
-          assetTab.addEventListener('click', () => {
-            assetLibrary.classList.remove('hidden');
-            templateLibrary.classList.add('hidden');
-            assetTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-            templateTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-          });
-    
-          // 模板搜索
-          templateSearchInput.addEventListener('input', (e) => {
-            const keyword = e.target.value.toLowerCase();
-            const filtered = state.allTemplates.filter(t => 
-              t.name.toLowerCase().includes(keyword) || 
-              t.description.toLowerCase().includes(keyword)
-            );
-            renderTemplateList(filtered);
-          });
-    
-          // 模板点击
-          templateListEl.addEventListener('click', (e) => {
-            const card = e.target.closest('.template-card');
-            if (card) {
-              const templateId = card.getAttribute('data-id');
-              loadTemplateToCanvas(templateId);
-            }
-          });
-    
-          // 标志分类筛选
-          document.querySelectorAll('.asset-category-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-              document.querySelectorAll('.asset-category-btn').forEach(b => {
-                b.classList.remove('bg-blue-500', 'text-white');
-                b.classList.add('text-gray-600', 'hover:bg-gray-100');
-              });
-              e.target.classList.add('bg-blue-500', 'text-white');
-              e.target.classList.remove('text-gray-600', 'hover:bg-gray-100');
-              
-              state.currentCategory = e.target.getAttribute('data-category');
-              filterAssets();
-            });
-          });
-    
-          // 标志搜索
-          assetSearchInput.addEventListener('input', filterAssets);
-    
-          // 标志点击添加 (仅图片)
-          assetListEl.addEventListener('click', (e) => {
-            const card = e.target.closest('.asset-card');
-            if (card && card.getAttribute('data-type') === 'image') {
-              const src = card.getAttribute('data-src');
-              addAssetToCanvas(src);
-            }
-          });
-    
-          // 画布尺寸应用
-          applySizeBtn.addEventListener('click', applyCanvasSize);
-    
-          // 导出按钮
-          exportBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            exportOptions.classList.toggle('hidden');
-          });
-    
-          document.addEventListener('click', () => {
-            exportOptions.classList.add('hidden');
-          });
-    
-          exportOptions.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              const format = btn.getAttribute('data-format');
-              exportCanvas(format);
-              exportOptions.classList.add('hidden');
-            });
-          });
-        }
-    
-        // 启动
-        window.addEventListener('DOMContentLoaded', init);
-      </script>
-
-</body>
-</html>
+                            : `<img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-
