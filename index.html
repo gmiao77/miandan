@@ -257,7 +257,7 @@
     // 加载模板元数据
     async function loadTemplateMetadata() {
       try {
-        const response = await fetch('./templates/metadata.json');
+        const response = await fetch('/miandan/templates/metadata.json');
         const data = await response.json();
         state.allTemplates = data.templates;
         renderTemplateList(data.templates);
@@ -277,7 +277,7 @@
               id: `${category}-${i}`,
               category,
               name: `${category}${i}`,
-              src: `./assets/images/${category}/${category}${i}.jpg`
+              src: `/miandan/assets/images/${category}/${category}${i}.jpg`
             };
             const exists = await checkImageExists(asset.src);
             if (exists) {
@@ -366,7 +366,7 @@
       canvas.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-gray-400">加载中...</div>';
       
       try {
-        const response = await fetch(`./templates/${templateId}.json`);
+        const response = await fetch(`/miandan/templates/${templateId}.json`);
         const template = await response.json();
         
         const templateMeta = state.allTemplates.find(t => t.id === templateId);
@@ -843,4 +843,5 @@
     window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
+
 </html>
