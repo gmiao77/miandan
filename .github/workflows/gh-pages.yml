@@ -1,22 +1,20 @@
-name: Fix MIME Types
+name: Deploy to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [ main ]  # 监听 main 分支的推送
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 关键：授予写入仓库内容的权限
     steps:
-      - uses: actions/checkout@v3
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Checkout 代码
+        uses: actions/checkout@v4  # 使用最新版本的 checkout 动作
+
+      - name: 部署到 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4  # 使用最新版本的部署动作
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
-          # 强制设置JSON文件的MIME类型为application/json
-          enable_jekyll: false
-          allow_empty_commit: false
-          keep_files: false
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Fix MIME types for JSON files'
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # 自动生成的令牌
+          publish_dir: ./  # 部署根目录下的所有文件（你的项目文件）
+          force_orphan: true  # 强制创建干净的 gh-pages 分支（避免冲突）
