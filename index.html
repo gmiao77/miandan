@@ -35,8 +35,7 @@
         @apply absolute select-none;
       }
       .editable {
-        /* *** 修改: 移除 outline-none，改为在 selected 状态下显示轮廓 *** */
-        @apply cursor-text; 
+        @apply cursor-text outline-none;
       }
       /* 缩放手柄样式 */
       .resize-handle {
@@ -65,16 +64,6 @@
         height: 100%;
         object-fit: contain;
       }
-      
-      /* 文本元素样式调整，以支持缩放容器 */
-      .canvas-element[data-type="text-wrapper"] .editable-content {
-          /* 确保 contenteditable 区域占据整个容器 */
-          display: block;
-          width: 100%;
-          height: 100%;
-          white-space: normal; /* 允许换行 */
-          overflow: hidden; /* 隐藏超出部分 */
-      }
     }
   </style>
 </head>
@@ -85,19 +74,19 @@
       <i class="fa fa-paint-brush text-xl mb-1"></i>
       <span class="text-xs">绘制</span>
     </button>
-    <button id="lnbText" class="flex flex-col items-center mb-6 text-blue-600 transition-colors">
-      <i class="fa fa-text-width text-xl mb-1"></i>
-      <span class="text-xs">文本</span>
+    <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
+      <i class="fa fa-font text-xl mb-1"></i>
+      <span class="text-xs">文字</span>
     </button>
     <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
       <i class="fa fa-square-o text-xl mb-1"></i>
       <span class="text-xs">形状</span>
     </button>
-    <button id="lnbAsset" class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
+    <button class="flex flex-col items-center mb-6 text-blue-600 transition-colors">
       <i class="fa fa-picture-o text-xl mb-1"></i>
       <span class="text-xs">标志</span>
     </button>
-    <button id="lnbTemplate" class="flex flex-col items-center text-gray-700 hover:text-blue-600 transition-colors">
+    <button class="flex flex-col items-center text-gray-700 hover:text-blue-600 transition-colors">
       <i class="fa fa-th-large text-xl mb-1"></i>
       <span class="text-xs">模板</span>
     </button>
@@ -106,32 +95,15 @@
   <div class="w-72 border-r border-gray-200 flex flex-col bg-white">
     <div class="border-b border-gray-200">
       <div class="flex">
-        <button id="textTab" class="flex-1 py-3 text-center text-sm font-medium text-blue-600 border-b-2 border-blue-600">
-          文本库
-        </button>
-        <button id="assetTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
-          标志库
-        </button>
         <button id="templateTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
           模板库
+        </button>
+        <button id="assetTab" class="flex-1 py-3 text-center text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+          标志库
         </button>
       </div>
     </div>
 
-    <div id="textLibrary" class="flex-1 overflow-y-auto scrollbar-hide p-3">
-        <h3 class="text-md font-semibold text-gray-700 mb-3">文本工具</h3>
-        <button id="addBlankTextBtn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
-            <i class="fa fa-plus-circle mr-1"></i> 插入空白文本框
-        </button>
-        
-        <div class="mt-4 border-t border-gray-200 pt-4">
-            <h4 class="text-sm font-medium text-gray-600 mb-2">常用文本</h4>
-            <div id="textTemplateList" class="space-y-2">
-                <div class="text-center text-gray-500 py-4 text-xs">暂无常用文本模板</div>
-            </div>
-        </div>
-    </div>
-    
     <div id="templateLibrary" class="hidden flex-1 overflow-y-auto scrollbar-hide p-3">
       <div class="mb-4">
         <input type="text" id="templateSearch" placeholder="搜索合规模板" 
@@ -147,14 +119,14 @@
       </div>
     </div>
 
-    <div id="assetLibrary" class="hidden flex-1 overflow-y-auto scrollbar-hide p-3">
+    <div id="assetLibrary" class="flex-1 overflow-y-auto scrollbar-hide p-3">
       <div class="mb-4">
         <input type="text" id="assetSearch" placeholder="搜索标志（如：窒息警告）" 
                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
         
         <div class="mt-3 overflow-x-auto scrollbar-hide">
           <div class="flex space-x-2 pb-2 min-w-max">
-            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="all">
+            <button class="asset-category-btn px-3 py-1 bg-blue-500 text-white rounded-md text-sm" data-category="all">
               全部
             </button>
             <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="代理">
@@ -250,8 +222,7 @@
           allAssets: [],
           filteredAssets: [],
           currentCategory: 'all',
-          currentPanel: 'text', // *** 修改: 默认显示文本库 ***
-          repoName: 'miandan' 
+          repoName: 'miandan' // 你的仓库名称
         };
     
         const assetCategories = [
@@ -271,19 +242,10 @@
         const templateSearchInput = document.getElementById('templateSearch');
         const assetListEl = document.getElementById('assetList');
         const assetSearchInput = document.getElementById('assetSearch');
-        
-        // *** DOM元素新增/修改 ***
-        const lnbText = document.getElementById('lnbText');
-        const lnbAsset = document.getElementById('lnbAsset');
-        const lnbTemplate = document.getElementById('lnbTemplate');
-        const textTab = document.getElementById('textTab');
-        const assetTab = document.getElementById('assetTab');
         const templateTab = document.getElementById('templateTab');
-        const textLibrary = document.getElementById('textLibrary');
-        const assetLibrary = document.getElementById('assetLibrary');
+        const assetTab = document.getElementById('assetTab');
         const templateLibrary = document.getElementById('templateLibrary');
-        const addBlankTextBtn = document.getElementById('addBlankTextBtn'); // 新增
-        // *** 结束 DOM元素新增/修改 ***
+        const assetLibrary = document.getElementById('assetLibrary');
     
         // 像素到毫米的转换因子 (1px ≈ 0.264583mm, 1mm ≈ 3.779528px)
         const MM_TO_PX = 3.779528;
@@ -297,11 +259,8 @@
           ]);
           initEventListeners();
           initInteractJs(); // 初始化interact.js
-          updatePanelVisibility(state.currentPanel); // 初始化面板显示
         }
     
-        // ... (loadTemplateMetadata, loadAllAssets, checkImageExists, renderTemplateList, renderAssetList 函数保持不变)
-        
         // 加载模板元数据
         async function loadTemplateMetadata() {
           try {
@@ -496,41 +455,6 @@
           // 为新元素设置interact.js交互
           setupInteractForElement(wrapper); 
         }
-
-        // *** 新增函数: 添加空白文本框到画布 ***
-        function addBlankTextElementToCanvas() {
-            if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
-              canvas.innerHTML = '';
-            }
-            
-            const elementId = `text-blank-${Date.now()}`;
-            
-            // 使用 createTextElement 创建元素，默认内容和尺寸
-            const element = {
-                content: '双击编辑文本',
-                editable: true,
-                position: { x: 50, y: 50 },
-                size: { width: 60, height: 15 }, // 默认尺寸 (mm)
-                style: {
-                    fontSize: 12,
-                    fontWeight: 'normal',
-                    color: '#333'
-                }
-            };
-
-            const domElement = createTextElement(elementId, element);
-            domElement.classList.add('selected'); // 默认选中新元素
-
-            canvas.appendChild(domElement);
-
-            // 取消其他元素的选中状态
-            document.querySelectorAll('.canvas-element').forEach(el => {
-                if (el !== domElement) el.classList.remove('selected');
-            });
-            
-            // 为新元素设置interact.js交互 (拖拽和缩放)
-            setupInteractForElement(domElement); 
-        }
     
         // 渲染模板元素
         function renderTemplateElements(elements) {
@@ -545,7 +469,6 @@
                 domElement = createRectElement(elementId, element);
                 break;
               case 'text':
-                // *** 修复/修改: 文本元素也使用容器和 setupInteractForElement ***
                 domElement = createTextElement(elementId, element);
                 break;
               case 'image':
@@ -555,8 +478,10 @@
             
             if (domElement) {
               canvas.appendChild(domElement);
-              // 为所有元素容器添加交互 (拖拽和缩放)
-              setupInteractForElement(domElement); 
+              // *** 修复：为图片和矩形容器添加交互 (拖拽和缩放) ***
+              if (element.type === 'image' || element.type === 'rect') { // 修复了矩形无法缩放的问题
+                setupInteractForElement(domElement); 
+              }
             }
           });
         }
@@ -575,70 +500,44 @@
           div.style.backgroundColor = element.style.fill || 'transparent';
           div.style.border = `${element.style.strokeWidth || 1}px solid ${element.style.stroke || '#ddd'}`;
 
-          // 为 rect 添加缩放手柄
+          // <<< 修复：为 rect 添加缩放手柄 >>>
           const handles = ['tl', 'tr', 'bl', 'br'];
           handles.forEach(pos => {
             const handle = document.createElement('div');
             handle.className = `resize-handle resize-handle-${pos}`;
             div.appendChild(handle);
           });
+          // <<< 修复结束 >>>
           
           return div;
         }
     
-        // *** 核心修改 4: 文本元素使用容器和 contenteditable 内容层 ***
         function createTextElement(id, element) {
-            const wrapper = document.createElement('div');
-            wrapper.id = id;
-            wrapper.className = 'canvas-element';
-            wrapper.dataset.type = 'text-wrapper'; // 标记为文本容器
-            
-            // 文本内容层
-            const content = document.createElement('div');
-            content.className = 'editable-content editable';
-            content.contentEditable = element.editable ? 'true' : 'false';
-            content.innerText = element.content;
-
-            // 样式应用于内容层或容器
-            content.style.fontSize = `${element.style.fontSize || 12}px`;
-            content.style.fontWeight = element.style.fontWeight || 'normal';
-            content.style.color = element.style.color || '#333';
-            if (element.style.textAlign) content.style.textAlign = element.style.textAlign;
-            
-            // 容器位置和大小
-            wrapper.style.left = `${element.position.x}mm`;
-            wrapper.style.top = `${element.position.y}mm`;
-            wrapper.style.width = `${element.size.width || 80}mm`;
-            wrapper.style.height = `${element.size.height || 20}mm`;
-            
-            wrapper.setAttribute('title', element.editable ? '点击拖拽，双击编辑' : '');
-
-            // 添加缩放手柄到 wrapper
-            const handles = ['tl', 'tr', 'bl', 'br'];
-            handles.forEach(pos => {
-                const handle = document.createElement('div');
-                handle.className = `resize-handle resize-handle-${pos}`;
-                wrapper.appendChild(handle);
-            });
-            
-            wrapper.appendChild(content);
-
-            // 阻止单次点击切换编辑/拖拽状态，使用双击
-            content.addEventListener('mousedown', (e) => {
-                e.stopPropagation(); // 阻止向下传递到 wrapper 的 down 事件，但 interact 的 down 监听器仍然会触发
-            });
-            
-            // 双击进入编辑模式 (如果 contenteditable='true')
-            content.addEventListener('dblclick', (e) => {
-                if (content.contentEditable === 'true') {
-                    content.focus();
-                }
-            });
-
-            return wrapper;
+          const div = document.createElement('div');
+          div.id = id;
+          div.className = 'canvas-element';
+          div.dataset.type = 'text';
+          
+          div.style.left = `${element.position.x}mm`;
+          div.style.top = `${element.position.y}mm`;
+          div.style.fontSize = `${element.style.fontSize || 12}px`;
+          div.style.fontWeight = element.style.fontWeight || 'normal';
+          div.style.color = element.style.color || '#333';
+          div.style.whiteSpace = 'nowrap'; // 防止文本自动换行
+          if (element.style.textAlign) div.style.textAlign = element.style.textAlign;
+          
+          div.innerText = element.content;
+          if (element.editable) {
+            div.contentEditable = true;
+            div.classList.add('editable');
+            div.setAttribute('title', '点击编辑');
+            // 文本元素由主选择器处理拖拽，内容编辑已通过 initInteractJs 中的 ignoreFrom 修复。
+          }
+          
+          return div;
         }
     
-        // 核心修改 2: 创建图片容器元素 (用于模板加载) - 保持不变
+        // *** 核心修改 2: 创建图片容器元素 (用于模板加载) ***
         function createImageElement(id, element) {
           const wrapper = document.createElement('div');
           wrapper.id = id;
@@ -685,8 +584,7 @@
               ],
               autoScroll: true,
               // *** 核心修复点：忽略来自缩放手柄和可编辑文本的拖拽事件 ***
-              // 文本层现在是 .editable-content
-              ignoreFrom: '.resize-handle, .editable-content', 
+              ignoreFrom: '.resize-handle, [contenteditable="true"]', // 修复了文本无法编辑的问题
               listeners: {
                 move(event) {
                   const target = event.target;
@@ -712,19 +610,6 @@
               // 确保点击手柄时，目标是父元素
               const target = event.target.closest('.canvas-element'); 
               if (!target) return;
-              
-              // 检查点击是否发生在可编辑区域
-              if (event.target.closest('.editable-content')) {
-                  // 如果点击在可编辑内容上，不取消其他元素的选中状态，但确保当前元素被选中
-                  if (!target.classList.contains('selected')) {
-                      document.querySelectorAll('.canvas-element').forEach(el => {
-                          el.classList.remove('selected');
-                      });
-                      target.classList.add('selected');
-                  }
-                  // 此时不应重置 data-x/data-y，因为如果进入编辑模式，它不应该被拖拽
-                  return; 
-              }
     
               // 选中元素时高亮并显示缩放手柄
               document.querySelectorAll('.canvas-element').forEach(el => {
@@ -751,10 +636,10 @@
           });
         }
     
-        // 核心修改 3: 为单个元素设置缩放功能 - 启用文本容器的缩放
+        // *** 核心修改 3: 为单个元素设置缩放功能 ***
         function setupInteractForElement(element, enableResize = true) {
-          // 矩形、图片容器、文本容器启用缩放
-          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect' || element.dataset.type === 'text-wrapper') && enableResize) { 
+          // 只有图片容器和矩形启用缩放
+          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect') && enableResize) { // 修复了矩形无法缩放的问题
             interact(element).resizable({
               inertia: true,
               modifiers: [
@@ -813,7 +698,7 @@
           canvasContainer.style.height = `${height}mm`;
         }
     
-        // 删除选中元素的功能函数
+        // *** 新增：删除选中元素的功能函数 ***
         function deleteSelectedElement() {
           // 找到当前选中的元素
           const selectedElement = document.querySelector('.canvas-element.selected');
@@ -893,87 +778,42 @@
           state.filteredAssets = filtered;
           renderAssetList(filtered);
         }
-
-        // *** 新增: 更新面板显示和LNB状态 ***
-        function updatePanelVisibility(panel) {
-            // 隐藏所有面板
-            [textLibrary, assetLibrary, templateLibrary].forEach(p => p.classList.add('hidden'));
-            
-            // 重置所有 LNB 按钮和 Tab 按钮样式
-            [lnbText, lnbAsset, lnbTemplate].forEach(btn => btn.classList.remove('text-blue-600'));
-            [lnbText, lnbAsset, lnbTemplate].forEach(btn => btn.classList.add('text-gray-700', 'hover:text-blue-600'));
-            [textTab, assetTab, templateTab].forEach(tab => {
-                tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-                tab.classList.add('text-gray-500', 'hover:text-gray-700');
-            });
-
-            // 显示和高亮当前面板/按钮
-            let currentLnb, currentTab, currentPanelEl;
-            if (panel === 'text') {
-                currentLnb = lnbText;
-                currentTab = textTab;
-                currentPanelEl = textLibrary;
-            } else if (panel === 'asset') {
-                currentLnb = lnbAsset;
-                currentTab = assetTab;
-                currentPanelEl = assetLibrary;
-                // 标志库 LNB 在 HTML 中是第 4 个按钮，需要手动定位
-                document.querySelector('.w-16 button:nth-child(4)').classList.add('text-blue-600');
-                document.querySelector('.w-16 button:nth-child(4)').classList.remove('text-gray-700', 'hover:text-blue-600');
-            } else if (panel === 'template') {
-                currentLnb = lnbTemplate;
-                currentTab = templateTab;
-                currentPanelEl = templateLibrary;
-                // 模板库 LNB 在 HTML 中是第 5 个按钮
-                document.querySelector('.w-16 button:nth-child(5)').classList.add('text-blue-600');
-                document.querySelector('.w-16 button:nth-child(5)').classList.remove('text-gray-700', 'hover:text-blue-600');
-            }
-
-            if (currentLnb) {
-                currentLnb.classList.add('text-blue-600');
-                currentLnb.classList.remove('text-gray-700', 'hover:text-blue-600');
-            }
-            if (currentTab) {
-                currentTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-                currentTab.classList.remove('text-gray-500', 'hover:text-gray-700');
-            }
-            if (currentPanelEl) {
-                currentPanelEl.classList.remove('hidden');
-            }
-
-            state.currentPanel = panel;
-        }
-
+    
         // 事件监听
         function initEventListeners() {
-          // 监听 Delete 和 Backspace 键删除选中元素
+          // *** 新增：监听 Delete 和 Backspace 键删除选中元素 ***
           document.addEventListener('keydown', (e) => {
+            // 检查按键是否是 Delete (keyCode 46) 或 Backspace (keyCode 8)
             if (e.key === 'Delete' || e.key === 'Backspace') {
+              // 确保当前焦点不在文本输入框（如搜索框）或 contentEditable 元素内
               const focusedElement = document.activeElement;
               const isInputFocused = (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA');
               const isEditable = focusedElement.hasAttribute('contenteditable') && focusedElement.getAttribute('contenteditable') === 'true';
     
+              // 如果焦点不在输入框或编辑区，则执行删除操作
               if (!isInputFocused && !isEditable) {
-                e.preventDefault(); 
+                e.preventDefault(); // 阻止浏览器默认行为（如返回上一页）
                 deleteSelectedElement();
               }
             }
           });
     
-          // *** 新增/修改: LNB 按钮点击事件 ***
-          lnbText.addEventListener('click', () => updatePanelVisibility('text'));
-          lnbAsset.addEventListener('click', () => updatePanelVisibility('asset'));
-          lnbTemplate.addEventListener('click', () => updatePanelVisibility('template'));
+          // 标签页切换
+          templateTab.addEventListener('click', () => {
+            templateLibrary.classList.remove('hidden');
+            assetLibrary.classList.add('hidden');
+            templateTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            assetTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+          });
           
-          // *** 新增/修改: 标签页切换事件 ***
-          textTab.addEventListener('click', () => updatePanelVisibility('text'));
-          assetTab.addEventListener('click', () => updatePanelVisibility('asset'));
-          templateTab.addEventListener('click', () => updatePanelVisibility('template'));
-
-          // *** 新增: 插入空白文本框按钮事件 ***
-          addBlankTextBtn.addEventListener('click', addBlankTextElementToCanvas);
+          assetTab.addEventListener('click', () => {
+            assetLibrary.classList.remove('hidden');
+            templateLibrary.classList.add('hidden');
+            assetTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            templateTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+          });
     
-          // 模板搜索 (不变)
+          // 模板搜索
           templateSearchInput.addEventListener('input', (e) => {
             const keyword = e.target.value.toLowerCase();
             const filtered = state.allTemplates.filter(t => 
@@ -983,7 +823,7 @@
             renderTemplateList(filtered);
           });
     
-          // 模板点击 (不变)
+          // 模板点击
           templateListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.template-card');
             if (card) {
@@ -992,7 +832,7 @@
             }
           });
     
-          // 标志分类筛选 (不变)
+          // 标志分类筛选
           document.querySelectorAll('.asset-category-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
               document.querySelectorAll('.asset-category-btn').forEach(b => {
@@ -1007,10 +847,10 @@
             });
           });
     
-          // 标志搜索 (不变)
+          // 标志搜索
           assetSearchInput.addEventListener('input', filterAssets);
     
-          // 标志点击添加 (不变)
+          // 标志点击添加
           assetListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.asset-card');
             if (card) {
@@ -1019,10 +859,10 @@
             }
           });
     
-          // 画布尺寸应用 (不变)
+          // 画布尺寸应用
           applySizeBtn.addEventListener('click', applyCanvasSize);
     
-          // 导出按钮 (不变)
+          // 导出按钮
           exportBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             exportOptions.classList.toggle('hidden');
