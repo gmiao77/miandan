@@ -818,9 +818,215 @@
             }
         }
 
-        // [此处省略了大量的其他函数：applyCanvasSize, exportCanvas, filterTemplates, filterAssets, initEventListeners，这些函数在用户提供的内容之外，但为了修复路径，我已经添加了 resolveRepoPath 并替换了三处路径构造逻辑。]
+// 画布尺寸调整 (保持不变)
+        function applyCanvasSize() {
+          const width = parseInt(canvasWidthInput.value) || 210;
+          const height = parseInt(canvasHeightInput.value) || 148;
+          canvasContainer.style.width = `${width}mm`;
+          canvasContainer.style.height = `${height}mm`;
+        }
+    
+        // 删除选中元素的功能函数 (保持不变)
+        function deleteSelectedElement() {
+          const selectedElement = document.querySelector('.canvas-element.selected');
+          
+          if (selectedElement) {
+            selectedElement.remove();
+            showPropertyPanel(null); 
+            
+            if (canvas.children.length === 0) {
+                canvas.innerHTML = `
+                  <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                    请从左侧选择模板或标志添加到画布
+                  </div>
+                `;
+            }
+          }
+        }
+    
+        // 导出功能 (保持不变)
+        function exportCanvas(format) {
+          if (canvas.children.length === 0 || canvas.querySelector('.text-gray-400')) {
+            alert('请先选择并填写合规面单信息');
+            return;
+          }
+          
+          document.querySelectorAll('.canvas-element').forEach(el => {
+            el.classList.remove('selected');
+          });
+          showPropertyPanel(null); 
+    
+          html2canvas(canvas, {
+            scale: 2,
+            useCORS: true
+          }).then(canvasImage => {
+            const imgData = canvasImage.toDataURL('image/png');
+            
+            if (format === 'pdf') {
+              const { jsPDF } = window.jspdf;
+              const pdf = new jsPDF({
+                orientation: canvasWidthInput.value > canvasHeightInput.value ? 'l' : 'p',
+                unit: 'mm',
+                format: [parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value)]
+              });
+              pdf.addImage(imgData, 'PNG', 0, 0, parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value));
+              pdf.save('跨境物流合规面单.pdf');
+            } else {
+              const link = document.createElement('a');
+              link.download = `跨境物流合规面单.${format}`;
+              link.href = format === 'jpg' ? imgData.replace('image/png', 'image/jpeg') : imgData;
+              link.click();
+            }
+          });
+        }
+    
+        // 筛选标志 (保持不变)
+        function filterAssets() {
+          const keyword = assetSearchInput.value.toLowerCase();
+          let filtered = state.allAssets;
+          
+          if (state.currentCategory !== 'all') {
+            filtered = filtered.filter(asset => asset.category === state.currentCategory);
+          }
+          
+          if (keyword) {
+            filtered = filtered.filter(asset => 
+              asset.name.toLowerCase().includes(keyword) || 
+              asset.category.toLowerCase().includes(keyword)
+            );
+          }
+          
+          state.filteredAssets = filtered;
+          renderAssetList(filtered);
+        }
+    
+        // 事件监听
+        function initEventListeners() {
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+              const focusedElement = document.activeElement;
+              const isInputFocused = (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA');
+              const isEditable = focusedElement.hasAttribute('contenteditable') && focusedElement.getAttribute('contenteditable') === 'true';
+    
+              if (!isInputFocused && !isEditable) {
+                e.preventDefault();
+                deleteSelectedElement();
+              }
+            }
+          });
+          
+          fontSizeSelect.addEventListener('change', updateTextProperties);
+          
+          document.addEventListener('click', (e) => {
+            if (!e.target.closest('#canvas') && !e.target.closest('#propertyPanel')) {
+                if (!document.querySelector('.canvas-element.selected')) {
+                    showPropertyPanel(null); 
+                }
+            }
+          });
+    
+          // 标签页切换逻辑
+          const switchTab = (activeTab, activeLibrary) => {
+            const tabs = [templateTab, textTab, assetTab];
+            const libraries = [templateLibrary, textLibrary, assetLibrary];
+            
+            tabs.forEach(tab => {
+                tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                tab.classList.add('text-gray-500', 'hover:text-gray-700');
+            });
+            libraries.forEach(lib => lib.classList.add('hidden'));
 
-        // ... [此处应是 applyCanvasSize, exportCanvas, filterTemplates, filterAssets, initEventListeners 等函数的补全]
-    </script>
+            activeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            activeTab.classList.remove('text-gray-500', 'hover:text-gray-700');
+            activeLibrary.classList.remove('hidden');
+          };
+          
+          templateTab.addEventListener('click', () => switchTab(templateTab, templateLibrary));
+          textTab.addEventListener('click', () => switchTab(textTab, textLibrary));
+          assetTab.addEventListener('click', () => switchTab(assetTab, assetLibrary));
+    
+          // 模板搜索
+          templateSearchInput.addEventListener('input', (e) => {
+            const keyword = e.target.value.toLowerCase();
+            const filtered = state.allTemplates.filter(t => 
+              t.name.toLowerCase().includes(keyword) || 
+              t.description.toLowerCase().includes(keyword)
+            );
+            renderTemplateList(filtered);
+          });
+    
+          // 模板库点击 (普通模板)
+          templateListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.template-card');
+            if (card) {
+              const templateId = card.getAttribute('data-id');
+              loadTemplateToCanvas(templateId);
+            }
+          });
+
+          // 文本库点击
+          textListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.template-card');
+            if (card) {
+              const templateId = card.getAttribute('data-id');
+              loadTemplateToCanvas(templateId);
+            }
+          });
+    
+          // 标志分类筛选
+          document.querySelectorAll('.asset-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              document.querySelectorAll('.asset-category-btn').forEach(b => {
+                b.classList.remove('bg-blue-500', 'text-white');
+                b.classList.add('text-gray-600', 'hover:bg-gray-100');
+              });
+              e.target.classList.add('bg-blue-500', 'text-white');
+              e.target.classList.remove('text-gray-600', 'hover:bg-gray-100');
+              
+              state.currentCategory = e.target.getAttribute('data-category');
+              filterAssets();
+            });
+          });
+    
+          // 标志搜索
+          assetSearchInput.addEventListener('input', filterAssets);
+    
+          // 标志点击添加
+          assetListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.asset-card');
+            if (card && card.getAttribute('data-type') === 'image') {
+              const src = card.getAttribute('data-src');
+              addAssetToCanvas(src);
+            }
+          });
+    
+          // 画布尺寸应用
+          applySizeBtn.addEventListener('click', applyCanvasSize);
+    
+          // 导出按钮
+          exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportOptions.classList.toggle('hidden');
+          });
+    
+          document.addEventListener('click', () => {
+            exportOptions.classList.add('hidden');
+          });
+    
+          exportOptions.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const format = btn.getAttribute('data-format');
+              exportCanvas(format);
+              exportOptions.classList.add('hidden');
+            });
+          });
+        }
+    
+        // 启动
+        window.addEventListener('DOMContentLoaded', init);
+      </script>
+
 </body>
 </html>
+
