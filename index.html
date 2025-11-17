@@ -593,8 +593,8 @@
               wrapper.className = 'canvas-element';
               wrapper.dataset.type = 'text-wrapper'; // 标记为文本容器
               
-              // *** 修复点：为 element.size 提供默认值 ***
-              const size = element.size || {};
+              // 修复上一个问题的点：为 element.size 提供默认值
+              const size = element.size || {}; 
               
               // 文本内容层
               const content = document.createElement('div');
@@ -608,14 +608,15 @@
               content.style.color = element.style.color || '#333';
               if (element.style.textAlign) content.style.textAlign = element.style.textAlign;
               
-              // 容器位置和大小，使用 size.width/height 并提供默认值
+              // 容器位置和大小
               wrapper.style.left = `${element.position.x}mm`;
               wrapper.style.top = `${element.position.y}mm`;
-              wrapper.style.width = `${size.width || 80}mm`; // 修复: 使用 size.width
-              wrapper.style.height = `${size.height || 20}mm`; // 修复: 使用 size.height
+              wrapper.style.width = `${size.width || 80}mm`; 
+              wrapper.style.height = `${size.height || 20}mm`; 
               
               wrapper.setAttribute('title', element.editable ? '点击拖拽，双击编辑' : '');
   
+              // 添加缩放手柄到 wrapper
               const handles = ['tl', 'tr', 'bl', 'br'];
               handles.forEach(pos => {
                   const handle = document.createElement('div');
@@ -625,9 +626,9 @@
               
               wrapper.appendChild(content);
   
-              // 阻止单次点击切换编辑/拖拽状态，使用双击
               content.addEventListener('mousedown', (e) => {
-                  e.stopPropagation(); 
+                  // e.stopPropagation(); // <-- 已移除!
+                  // 确保单次点击仍然将焦点放在可编辑内容上，但允许事件冒泡
               });
               
               // 双击进入编辑模式 (如果 contenteditable='true')
@@ -716,8 +717,6 @@
                 })
               ],
               autoScroll: true,
-              // *** 核心修复点：忽略来自缩放手柄和可编辑文本的拖拽事件 ***
-              // 文本层现在是 .editable-content
               ignoreFrom: '.resize-handle, .editable-content', 
               listeners: {
                 move(event) {
@@ -1080,3 +1079,4 @@
 
 </body>
 </html>
+
