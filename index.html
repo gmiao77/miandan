@@ -348,7 +348,7 @@
           }
         }
         
-        // 渲染文本模板列表 (NEW FUNCTION)
+        // 渲染文本模板列表
         function renderTextTemplateList(templates) {
             if (templates.length === 0) {
                 textListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无文本模板数据</div>';
@@ -369,7 +369,7 @@
             }).join('');
         }
     
-        // 渲染普通模板列表 (更新：移除对 text-template 的特殊判断，因为已经被分离)
+        // 渲染普通模板列表
         function renderTemplateList(templates) {
           if (templates.length === 0) {
             templateListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无合规模板数据</div>';
@@ -422,8 +422,6 @@
           }
         }
     
-        // ... (其他辅助函数如 checkImageExists, renderAssetList, addAssetToCanvas, renderTemplateElements, createRectElement, createTextElement, createImageElement, initInteractJs, setupInteractForElement, showPropertyPanel, updateTextProperties 保持不变)
-
         // 检查图片是否存在 (保持不变)
         function checkImageExists(src) {
           return new Promise(resolve => {
@@ -774,7 +772,7 @@
             }
         }
     
-        // 加载模板到画布 (保持不变)
+        // 加载模板到画布 (已修复 templateMeta.path 检查)
         async function loadTemplateToCanvas(templateId) {
             // 在普通模板和文本模板中查找元数据
             let templateMeta = state.allTemplates.find(t => t.id === templateId);
@@ -783,6 +781,13 @@
             }
 
             if (!templateMeta) return;
+            
+            // 修复: 检查 path 属性是否存在，避免 'replace' on undefined 错误
+            if (!templateMeta.path) {
+                alert(`模板 [${templateId}] 的元数据缺少文件路径 (path 属性)。请检查 metadata.json 文件结构。`);
+                console.error(`Error: Template [${templateId}] metadata is missing the 'path' property.`, templateMeta);
+                return;
+            }
 
             let templateData;
 
@@ -795,6 +800,7 @@
                 }
                 templateData = await response.json();
             } catch (error) {
+                // 如果 fetch 失败，或者 JSON 解析失败，会进入这里
                 alert('加载模板详情失败，请检查文件路径（例如：templates/text.json）或网络连接。');
                 console.error('加载模板详情失败:', error);
                 return;
@@ -831,7 +837,11 @@
 
             // 5. 选中当前模板卡片 (在两个列表中查找)
             document.querySelectorAll('.template-card').forEach(card => card.classList.remove('active'));
-            document.querySelector(`.template-card[data-id="${templateId}"]`).classList.add('active');
+            // 确保只选中当前可见卡片
+            const activeCard = document.querySelector(`#templateLibrary .template-card[data-id="${templateId}"], #textLibrary .template-card[data-id="${templateId}"]`);
+            if (activeCard) {
+                activeCard.classList.add('active');
+            }
         }
 
         // 画布尺寸调整 (保持不变)
@@ -916,7 +926,7 @@
           renderAssetList(filtered);
         }
     
-        // 事件监听 (更新：新增文本库 Tab 切换)
+        // 事件监听
         function initEventListeners() {
           document.addEventListener('keydown', (e) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -941,15 +951,19 @@
             }
           });
     
-          // 标签页切换逻辑 (NEW)
+          // 标签页切换逻辑
           const switchTab = (activeTab, activeLibrary) => {
             const tabs = [templateTab, textTab, assetTab];
             const libraries = [templateLibrary, textLibrary, assetLibrary];
             
-            tabs.forEach(tab => tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600'));
+            tabs.forEach(tab => {
+                tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                tab.classList.add('text-gray-500', 'hover:text-gray-700');
+            });
             libraries.forEach(lib => lib.classList.add('hidden'));
 
             activeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            activeTab.classList.remove('text-gray-500', 'hover:text-gray-700');
             activeLibrary.classList.remove('hidden');
           };
           
@@ -976,7 +990,7 @@
             }
           });
 
-          // 文本库点击 (NEW)
+          // 文本库点击
           textListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.template-card');
             if (card) {
