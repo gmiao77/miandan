@@ -230,32 +230,21 @@
 
 
     <script>
-        // 对应 templates/text.json 的模板 ID
-        const TEXT_TEMPLATE_ID = 'text-template'; 
-        const TEXT_TEMPLATE_PATH = './templates/text.json';
-
-        // 模拟 text.json 文件的内容 (因为它在实际文件系统中可能不存在)
-        // 用户可以根据这个结构创建 text.json 文件
-        const TEXT_JSON_CONTENT = {
+        // NEW: 内置文本模板数据，模拟 txt.json 内容
+        const BUILTIN_TEXT_TEMPLATE_ID = 'builtin-text-box';
+        const BUILTIN_TEXT_TEMPLATE_DATA = {
+            name: '内置文本框',
+            description: '点击插入一个可移动、可编辑的文本框。',
+            size: { width: 100, height: 30, unit: 'mm' }, // 默认尺寸
             elements: [
                 {
                     type: 'text',
-                    position: { x: 0, y: 0 }, // 初始位置不重要，loadTemplateToCanvas 会计算居中
+                    position: { x: 10, y: 10 },
                     content: 'This is a text area', // 用户要求的内置文字内容
                     style: { fontSize: 14, fontWeight: 'normal', color: '#000' },
                     editable: true
                 }
             ]
-        };
-
-        // text.json 对应的元数据 (用于模板列表展示)
-        const TEXT_TEMPLATE_META = {
-            id: TEXT_TEMPLATE_ID,
-            name: '内置文本框',
-            description: '点击插入一个可移动、可编辑的文本框。',
-            thumbnail: 'https://via.placeholder.com/100x75/007bff/ffffff?text=Text+Box', 
-            path: TEXT_TEMPLATE_PATH, 
-            size: { width: 210, height: 148, unit: 'mm' } // 插入时的默认画布尺寸 (A5)
         };
 
         const state = {
@@ -304,12 +293,12 @@
             loadTemplateMetadata(),
             loadAllAssets()
           ]);
-          populateFontSizeOptions(); // 填充字号选项
+          populateFontSizeOptions(); // NEW: 填充字号选项
           initEventListeners();
           initInteractJs(); // 初始化interact.js
         }
 
-        // 填充字号选项
+        // NEW: 填充字号选项
         function populateFontSizeOptions() {
             for (let i = 8; i <= 36; i += 2) {
                 const option = document.createElement('option');
@@ -319,28 +308,32 @@
             }
         }
     
-        // 加载模板元数据 (新增 text.json 元数据)
+        // 加载模板元数据 (新增内置文本模板)
         async function loadTemplateMetadata() {
           try {
-            // 尝试加载远程模板元数据
             const response = await fetch(`/${state.repoName}/templates/metadata.json`);
             const data = await response.json();
             let templates = data.templates;
 
-            // 1. 添加内置文本模板到列表的开头
-            templates.unshift(TEXT_TEMPLATE_META);
+            // NEW: 添加内置文本模板到列表的开头
+            templates.unshift({
+                id: BUILTIN_TEXT_TEMPLATE_ID,
+                name: BUILTIN_TEXT_TEMPLATE_DATA.name,
+                description: BUILTIN_TEXT_TEMPLATE_DATA.description,
+                thumbnail: 'https://via.placeholder.com/100x75/007bff/ffffff?text=Text+Box', // 占位图
+                path: `/${state.repoName}/templates/builtin_text.json`, // 模拟的 json 路径
+                size: BUILTIN_TEXT_TEMPLATE_DATA.size
+            });
 
             state.allTemplates = templates;
             renderTemplateList(templates);
           } catch (error) {
-            // 如果远程加载失败，至少显示内置文本模板
-            state.allTemplates = [TEXT_TEMPLATE_META];
-            renderTemplateList(state.allTemplates);
-            console.error('模板元数据加载失败，仅显示内置文本模板：', error);
+            templateListEl.innerHTML = '<div class="text-center text-red-500 py-10">模板加载失败</div>';
+            console.error('模板元数据加载失败：', error);
           }
         }
     
-        // 加载标志资源 (保持不变)
+        // 加载标志资源 (移除文本资产加载)
         async function loadAllAssets() {
           try {
             const allAssets = [];
@@ -373,7 +366,7 @@
           }
         }
     
-        // 检查图片是否存在 (保持不变)
+        // 检查图片是否存在
         function checkImageExists(src) {
           return new Promise(resolve => {
             const img = new Image();
@@ -392,7 +385,8 @@
           }
     
           templateListEl.innerHTML = templates.map(template => {
-            const isTextBox = template.id === TEXT_TEMPLATE_ID;
+            // 为内置文本框设置特殊的图标或样式
+            const isTextBox = template.id === BUILTIN_TEXT_TEMPLATE_ID;
             
             return `
                 <div class="template-card ${isTextBox ? 'border-blue-300 bg-blue-50' : ''}" data-id="${template.id}">
@@ -410,7 +404,7 @@
           }).join('');
         }
     
-        // 渲染标志列表 (保持不变)
+        // 渲染标志列表 (仅处理图片)
         function renderAssetList(assets) {
           if (assets.length === 0) {
             assetListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无标志数据</div>';
@@ -497,7 +491,7 @@
           showPropertyPanel(null); // 插入图片时隐藏文本面板
         }
     
-        // 渲染模板元素 (保持不变)
+        // 渲染模板元素
         function renderTemplateElements(elements) {
           canvas.innerHTML = '';
           showPropertyPanel(null); // 切换模板时隐藏属性面板
@@ -544,7 +538,7 @@
           }
         }
     
-        // 创建元素工具函数 (保持不变)
+        // 创建元素工具函数 (Rect 保持不变)
         function createRectElement(id, element) {
           const div = document.createElement('div');
           div.id = id;
@@ -568,6 +562,7 @@
           return div;
         }
     
+        // 创建文本元素工具函数 (Text 保持不变)
         function createTextElement(id, element) {
           const div = document.createElement('div');
           div.id = id;
@@ -592,6 +587,7 @@
           return div;
         }
     
+        // 创建图片元素工具函数 (Image 保持不变)
         function createImageElement(id, element) {
           const wrapper = document.createElement('div');
           wrapper.id = id;
@@ -622,7 +618,7 @@
           return wrapper; 
         }
     
-        // 初始化interact.js交互 (保持不变)
+        // 初始化interact.js交互
         function initInteractJs() {
           interact('.canvas-element')
             .draggable({
@@ -634,6 +630,7 @@
                 })
               ],
               autoScroll: true,
+              // FIX: 允许文本元素被拖动，仅忽略缩放手柄
               ignoreFrom: '.resize-handle', 
               listeners: {
                 move(event) {
@@ -656,7 +653,7 @@
               const target = event.target.closest('.canvas-element'); 
               
               if (!target) {
-                showPropertyPanel(null); 
+                showPropertyPanel(null); // 如果点击空白处，隐藏面板
                 return;
               }
     
@@ -671,7 +668,7 @@
               target.setAttribute('data-x', target.offsetLeft);
               target.setAttribute('data-y', target.offsetTop);
 
-              showPropertyPanel(target); 
+              showPropertyPanel(target); // 选中元素时显示属性面板
             });
     
           interact('#canvas').on('down', function(event) {
@@ -679,13 +676,14 @@
               document.querySelectorAll('.canvas-element').forEach(el => {
                 el.classList.remove('selected');
               });
-              showPropertyPanel(null); 
+              showPropertyPanel(null); // 点击画布背景时隐藏面板
             }
           });
         }
     
-        // 为单个元素设置缩放功能 (保持不变)
+        // 为单个元素设置缩放功能
         function setupInteractForElement(element, enableResize = true) {
+          // 只有图片和矩形可以缩放
           if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect') && enableResize) {
             interact(element).resizable({
               inertia: true,
@@ -732,10 +730,11 @@
           }
         }
         
-        // 显示/隐藏属性面板，并绑定选中元素 (保持不变)
+        // 显示/隐藏属性面板，并绑定选中元素
         function showPropertyPanel(element) {
             if (element && element.dataset.type === 'text') {
                 selectedTextElement = element;
+                // 读取当前字号并设置下拉框
                 const currentSize = parseFloat(element.style.fontSize) || 12;
                 fontSizeSelect.value = currentSize;
                 propertyPanel.classList.remove('hidden');
@@ -745,7 +744,7 @@
             }
         }
 
-        // 更新文本属性（字号） (保持不变)
+        // 更新文本属性（字号）
         function updateTextProperties() {
             if (selectedTextElement) {
                 const newSize = fontSizeSelect.value;
@@ -753,7 +752,7 @@
             }
         }
     
-        // 加载模板到画布 (更新以处理 text.json 模板)
+        // 加载模板到画布 (更新以处理内置文本)
         async function loadTemplateToCanvas(templateId) {
             const templateMeta = state.allTemplates.find(t => t.id === templateId);
             if (!templateMeta) return;
@@ -761,47 +760,42 @@
             let templateData;
             let elementsToRender;
 
-            if (templateId === TEXT_TEMPLATE_ID) {
-                // 1. 处理 text.json 模板 (从模拟内容加载)
-                templateData = TEXT_JSON_CONTENT;
+            if (templateId === BUILTIN_TEXT_TEMPLATE_ID) {
+                // 1. 处理内置文本模板
+                templateData = BUILTIN_TEXT_TEMPLATE_DATA;
                 
-                const width = templateMeta.size.width;
-                const height = templateMeta.size.height;
+                // 计算居中位置
+                const defaultWidth = templateMeta.size.width;
+                const defaultHeight = templateMeta.size.height;
                 
-                // 计算居中位置 (假设文本框默认宽度 100mm, 高度 20mm)
                 elementsToRender = templateData.elements.map(el => ({
                     ...el,
                     position: { 
-                        x: width / 2 - 50, 
-                        y: height / 2 - 10 
+                        x: defaultWidth / 2 - 50, // 假设文本框宽度100mm，居中
+                        y: defaultHeight / 2 - 10 // 假设文本框高度20mm，居中
                     }
                 }));
 
-                // 设置画布尺寸
-                canvasWidthInput.value = width;
-                canvasHeightInput.value = height;
-                applyCanvasSize();
-
             } else {
-                // 2. 处理外部模板 JSON (从路径加载)
+                // 2. 处理外部模板 JSON
                 try {
-                    // path 是 ./templates/xxx.json，需要替换前缀以确保相对路径正确
                     const response = await fetch(templateMeta.path.replace('./', `/${state.repoName}/`));
-                    if (!response.ok) throw new Error('Network response was not ok');
                     templateData = await response.json();
                     elementsToRender = templateData.elements;
                 } catch (error) {
-                    alert('加载模板详情失败，请检查文件路径: ' + templateMeta.path);
+                    alert('加载模板详情失败，请检查文件路径');
                     console.error('加载模板详情失败:', error);
                     return;
                 }
-                
-                // 设置画布尺寸 (使用模板尺寸)
-                canvasWidthInput.value = templateMeta.size.width;
-                canvasHeightInput.value = templateMeta.size.height;
-                applyCanvasSize();
             }
             
+            // 设置画布尺寸 (即使是文本框也要设置，保持一致性)
+            const width = templateMeta.size.width;
+            const height = templateMeta.size.height;
+            canvasWidthInput.value = width;
+            canvasHeightInput.value = height;
+            applyCanvasSize();
+
             // 清空画布并渲染元素
             renderTemplateElements(elementsToRender); 
 
@@ -810,7 +804,7 @@
             document.querySelector(`.template-card[data-id="${templateId}"]`).classList.add('active');
         }
 
-        // 画布尺寸调整 (保持不变)
+        // 画布尺寸调整
         function applyCanvasSize() {
           const width = parseInt(canvasWidthInput.value) || 210;
           const height = parseInt(canvasHeightInput.value) || 148;
@@ -818,13 +812,13 @@
           canvasContainer.style.height = `${height}mm`;
         }
     
-        // 删除选中元素的功能函数 (保持不变)
+        // 删除选中元素的功能函数
         function deleteSelectedElement() {
           const selectedElement = document.querySelector('.canvas-element.selected');
           
           if (selectedElement) {
             selectedElement.remove();
-            showPropertyPanel(null); 
+            showPropertyPanel(null); // 删除后隐藏面板
             
             if (canvas.children.length === 0) {
                 canvas.innerHTML = `
@@ -836,7 +830,7 @@
           }
         }
     
-        // 导出功能 (保持不变)
+        // 导出功能
         function exportCanvas(format) {
           if (canvas.children.length === 0 || canvas.querySelector('.text-gray-400')) {
             alert('请先选择并填写合规面单信息');
@@ -846,7 +840,7 @@
           document.querySelectorAll('.canvas-element').forEach(el => {
             el.classList.remove('selected');
           });
-          showPropertyPanel(null); 
+          showPropertyPanel(null); // 导出前隐藏面板
     
           html2canvas(canvas, {
             scale: 2,
@@ -872,7 +866,7 @@
           });
         }
     
-        // 筛选标志 (保持不变)
+        // 筛选标志
         function filterAssets() {
           const keyword = assetSearchInput.value.toLowerCase();
           let filtered = state.allAssets;
@@ -892,8 +886,9 @@
           renderAssetList(filtered);
         }
     
-        // 事件监听 (保持不变)
+        // 事件监听
         function initEventListeners() {
+          // 监听 Delete 和 Backspace 键删除选中元素
           document.addEventListener('keydown', (e) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
               const focusedElement = document.activeElement;
@@ -907,9 +902,12 @@
             }
           });
           
+          // 监听字号选择框变化
           fontSizeSelect.addEventListener('change', updateTextProperties);
           
+          // 监听全局点击，如果点击不在画布或属性面板内，则隐藏面板
           document.addEventListener('click', (e) => {
+            // 仅当点击画布外的其他地方，且没有元素被选中时才隐藏面板
             if (!e.target.closest('#canvas') && !e.target.closest('#propertyPanel')) {
                 if (!document.querySelector('.canvas-element.selected')) {
                     showPropertyPanel(null); 
