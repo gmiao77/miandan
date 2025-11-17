@@ -1,7 +1,6 @@
 {
   "id": "manufacturer-info",
   "elements": [
-    // 标题
     {
       "type": "text",
       "position": { "x": 100, "y": 15 },
@@ -15,7 +14,6 @@
       "editable": false
     },
 
-    // 制造商信息区域
     {
       "type": "rect",
       "position": { "x": 10, "y": 25 },
@@ -58,7 +56,6 @@
       "editable": true
     },
 
-    // 欧盟代表信息
     {
       "type": "rect",
       "position": { "x": 10, "y": 80 },
@@ -91,7 +88,7 @@
       "editable": true
     },
 
-    // 合规标志和条码
+
     {
       "type": "image",
       "position": { "x": 10, "y": 125 },
