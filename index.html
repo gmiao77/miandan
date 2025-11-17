@@ -35,7 +35,10 @@
         @apply absolute select-none;
       }
       .editable {
-        @apply cursor-text outline-none;
+        /* 避免在拖动时显示光标，编辑时仍然有效 */
+        @apply cursor-move; 
+        outline-offset: 4px; /* 增加轮廓偏移，更容易点击边缘拖动 */
+        min-width: 20px; /* 确保最小可点击区域 */
       }
       /* 缩放手柄样式 */
       .resize-handle {
@@ -407,18 +410,18 @@
                     if (asset.category === '文本') {
                       // 渲染文本资产卡片
                       return `
-                        <div class="asset-card text-asset-card" 
+                        <div class="asset-card text-asset-card col-span-2" 
                             data-id="${asset.id}" 
                             data-type="text" 
                             data-content="${asset.content}"
                             data-style='${JSON.stringify(asset.style)}'
                             data-category="${asset.category}">
-                            <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-1 h-16 flex items-center justify-center overflow-hidden">
-                                <p style="font-size: ${asset.style.fontSize}px; font-weight: ${asset.style.fontWeight || 'normal'}; color: ${asset.style.color}">
+                            <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-1 h-12 flex items-center justify-center overflow-hidden">
+                                <i class="fa fa-font text-blue-500 text-xl mr-2"></i>
+                                <p class="text-sm text-gray-800">
                                     ${asset.name}
                                 </p>
                             </div>
-                            <p class="text-xs text-center mt-1 text-gray-600">${asset.name}</p>
                         </div>
                       `;
                     } else {
@@ -485,6 +488,7 @@
           
           wrapper.classList.add('selected');
           setupInteractForElement(wrapper); 
+          showPropertyPanel(null); // 插入图片时隐藏文本面板
         }
 
         // 添加文本元素到画布
@@ -525,7 +529,7 @@
           domElement.setAttribute('data-x', domElement.offsetLeft);
           domElement.setAttribute('data-y', domElement.offsetTop);
           
-          showPropertyPanel(domElement); // NEW: 插入后显示属性面板
+          showPropertyPanel(domElement); // 插入后显示属性面板
         }
     
         // 渲染模板元素
@@ -560,7 +564,7 @@
           });
         }
     
-        // 创建元素工具函数 (Rect, Text, Image 保持不变)
+        // 创建元素工具函数
         function createRectElement(id, element) {
           const div = document.createElement('div');
           div.id = id;
@@ -602,7 +606,8 @@
           if (element.editable) {
             div.contentEditable = true;
             div.classList.add('editable');
-            div.setAttribute('title', '点击编辑');
+            // 注意：这里我们让 cursor 保持为 move，避免影响拖拽。用户双击仍可编辑。
+            div.setAttribute('title', '拖动移动，双击编辑');
           }
           
           return div;
@@ -650,8 +655,8 @@
                 })
               ],
               autoScroll: true,
-              // 忽略手柄和可编辑文本区域，允许点击编辑
-              ignoreFrom: '.resize-handle, [contenteditable="true"]', 
+              // FIX: 移除 [contenteditable="true"] 的忽略，允许文本元素被拖动
+              ignoreFrom: '.resize-handle', 
               listeners: {
                 move(event) {
                   const target = event.target;
@@ -679,7 +684,8 @@
     
               document.querySelectorAll('.canvas-element').forEach(el => {
                 el.classList.remove('selected');
-                el.removeAttribute('data-x');
+                // 必须在每次点击时重新设置 data-x/y 为实际 offsetLeft/Top，以防拖动结束后浏览器更新了位置但数据未同步
+                el.removeAttribute('data-x'); 
                 el.removeAttribute('data-y');
               });
               
@@ -771,6 +777,33 @@
             }
         }
     
+        // 加载模板到画布 (简化版，仅用于演示)
+        async function loadTemplateToCanvas(templateId) {
+            const templateMeta = state.allTemplates.find(t => t.id === templateId);
+            if (!templateMeta) return;
+
+            // 1. 设置画布尺寸
+            const width = templateMeta.size.width;
+            const height = templateMeta.size.height;
+            canvasWidthInput.value = width;
+            canvasHeightInput.value = height;
+            applyCanvasSize();
+
+            // 2. 加载模板元素
+            try {
+                const response = await fetch(templateMeta.path.replace('./', `/${state.repoName}/`));
+                const templateData = await response.json();
+                renderTemplateElements(templateData.elements);
+
+                // 3. 选中当前模板卡片
+                document.querySelectorAll('.template-card').forEach(card => card.classList.remove('active'));
+                document.querySelector(`.template-card[data-id="${templateId}"]`).classList.add('active');
+            } catch (error) {
+                alert('加载模板详情失败，请检查文件路径');
+                console.error('加载模板详情失败:', error);
+            }
+        }
+
         // 画布尺寸调整
         function applyCanvasSize() {
           const width = parseInt(canvasWidthInput.value) || 210;
@@ -874,8 +907,12 @@
           
           // NEW: 监听全局点击，如果点击不在画布或属性面板内，则隐藏面板
           document.addEventListener('click', (e) => {
+            // 确保点击画布外的其他地方，但不是属性面板本身
             if (!e.target.closest('#canvas') && !e.target.closest('#propertyPanel')) {
-                showPropertyPanel(null); 
+                // 仅当没有元素被选中时才隐藏面板
+                if (!document.querySelector('.canvas-element.selected')) {
+                    showPropertyPanel(null); 
+                }
             }
           });
     
