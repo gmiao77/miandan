@@ -193,32 +193,33 @@
       </div>
     </div>
     
-    <div class="flex-1 p-4 overflow-auto bg-gray-50">
-      
-      <div id="canvasContainer" class="canvas-container transition-all duration-300" 
-           style="width: 210mm; height: 148mm;">
-        <div id="canvas" class="w-full h-full relative">
-          <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
-            请从左侧选择模板或标志添加到画布
+    <div class="flex-1 p-6 overflow-auto bg-gray-50 flex justify-center items-start">
+      <div class="py-6 flex flex-col items-end"> 
+        <div id="canvasContainer" class="canvas-container transition-all duration-300" 
+             style="width: 210mm; height: 148mm;">
+          <div id="canvas" class="w-full h-full relative">
+            <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+              请从左侧选择模板或标志添加到画布
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div class="mt-6 flex justify-end">
-        <div class="relative inline-block">
-          <button id="exportBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-            导出合规面单 <i class="fa fa-download ml-1"></i>
-          </button>
-          <div id="exportOptions" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
-            <button data-format="pdf" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-              <i class="fa fa-file-pdf-o mr-2 text-red-500"></i>PDF格式（推荐）
+        
+        <div class="mt-6">
+          <div class="relative inline-block">
+            <button id="exportBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+              导出合规面单 <i class="fa fa-download ml-1"></i>
             </button>
-            <button data-format="png" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-              <i class="fa fa-file-image-o mr-2 text-green-500"></i>PNG格式
-            </button>
-            <button data-format="jpg" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-              <i class="fa fa-file-image-o mr-2 text-yellow-500"></i>JPG格式
-            </button>
+            <div id="exportOptions" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+              <button data-format="pdf" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="fa fa-file-pdf-o mr-2 text-red-500"></i>PDF格式（推荐）
+              </button>
+              <button data-format="png" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="fa fa-file-image-o mr-2 text-green-500"></i>PNG格式
+              </button>
+              <button data-format="jpg" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="fa fa-file-image-o mr-2 text-yellow-500"></i>JPG格式
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -233,7 +234,7 @@
       filteredAssets: [],
       currentCategory: 'all',
       repoName: 'miandan', // 你的仓库名称
-      canvasZoom: 1.0 // *** 新增：画布缩放比例 (1.0 = 100%) ***
+      canvasZoom: 1.0 // *** 画布缩放比例 (1.0 = 100%) ***
     };
 
     const assetCategories = [
@@ -701,7 +702,7 @@
               // 更新宽高和位置（转换为毫米）
               const mmWidth = event.rect.width * PX_TO_MM;
               const mmHeight = event.rect.height * PX_TO_MM;
-              const mmX = x * PX_TO_PX;
+              const mmX = x * PX_TO_MM;
               const mmY = y * PX_TO_MM;
               
               target.style.width = `${mmWidth}mm`;
