@@ -268,43 +268,52 @@
     }
 
     // 加载标志资源
-    async function loadAllAssets() {
-      try {
-        const allAssets = [];
-        for (const category of assetCategories) {
-          for (let i = 1; i <= 10; i++) {
-            const asset = {
-              id: `${category}-${i}`,
-              category,
-              name: `${category}${i}`,
-              src: `/miandan/assets/images/${category}/${category}${i}.jpg`
-            };
-            const exists = await checkImageExists(asset.src);
-            if (exists) {
-              allAssets.push(asset);
-            } else {
-              break;
-            }
+   async function loadAllAssets() {
+    try {
+      const allAssets = [];
+      // 标志分类必须与文件夹名完全一致
+      const assetCategories = [
+        '代理', '法国标', '化妆品', '能效', 
+        '纽扣电池', '西班牙回收', '窒息警告', '其他'
+      ];
+      for (const category of assetCategories) {
+        for (let i = 1; i <= 100; i++) {  // 假设每个分类最多10张图
+          // 拼接GitHub Pages上的绝对路径
+          const src = `/miandan/assets/images/${category}/${category}${i}.jpg`;
+          const asset = {
+            id: `${category}-${i}`,
+            category,
+            name: `${category}${i}`,
+            src: src
+          };
+          // 检查图片是否存在
+          const exists = await checkImageExists(src);
+          if (exists) {
+            allAssets.push(asset);
+          } else {
+            break;  // 若图片不存在，停止当前分类的加载
           }
         }
-        state.allAssets = allAssets;
-        state.filteredAssets = allAssets;
-        renderAssetList(allAssets);
-      } catch (error) {
-        assetListEl.innerHTML = '<div class="text-center text-red-500 py-10">标志加载失败</div>';
-        console.error('标志资源加载失败：', error);
       }
+      state.allAssets = allAssets;
+      state.filteredAssets = allAssets;
+      renderAssetList(allAssets);
+    } catch (error) {
+      assetListEl.innerHTML = '<div class="text-center text-red-500 py-10">标志加载失败</div>';
+      console.error('标志资源加载失败：', error);
     }
-
-    // 检查图片是否存在
-    function checkImageExists(src) {
-      return new Promise(resolve => {
-        const img = new Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
-        img.src = src;
-      });
-    }
+  }
+  
+  // 辅助函数：检查图片是否存在（修正跨域问题）
+  function checkImageExists(src) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';  // 允许跨域加载
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = src;
+    });
+  }
 
     // 渲染模板列表
     function renderTemplateList(templates) {
@@ -845,3 +854,4 @@
 </body>
 
 </html>
+
