@@ -150,6 +150,9 @@
             <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="窒息警告">
               窒息警告
             </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="文本">
+              文本
+            </button>
             <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="其他">
               其他
             </button>
@@ -225,9 +228,35 @@
           repoName: 'miandan' // 你的仓库名称
         };
     
+        // NEW: 内置文本资产定义
+        const builtInTextAssets = [
+          { 
+            id: 'text-title', 
+            category: '文本', 
+            name: '标题文本', 
+            content: '请在此输入标题', 
+            style: { fontSize: 16, fontWeight: 'bold', color: '#000', textAlign: 'center' } 
+          },
+          { 
+            id: 'text-normal', 
+            category: '文本', 
+            name: '普通文本', 
+            content: '点击编辑文本内容', 
+            style: { fontSize: 10, color: '#333' } 
+          },
+          { 
+            id: 'text-small', 
+            category: '文本', 
+            name: '小字提示', 
+            content: '注意：易碎品', 
+            style: { fontSize: 8, color: '#e53e3e' } 
+          }
+        ];
+    
+        // UPDATED: 资产分类，加入了“文本”
         const assetCategories = [
           '代理', '法国标', '化妆品', '能效', 
-          '纽扣电池', '西班牙回收', '窒息警告', '其他'
+          '纽扣电池', '西班牙回收', '窒息警告', '文本', '其他'
         ];
     
         // DOM元素
@@ -274,14 +303,15 @@
           }
         }
     
-        // 加载标志资源
+        // 加载标志资源 (UPDATED to include text assets)
         async function loadAllAssets() {
           try {
             const allAssets = [];
+            
+            // 1. 加载图片资产 (保持原有逻辑)
             for (const category of assetCategories) {
-              // 假设每个分类最多有10个资源
+              if (category === '文本') continue; // 跳过文本类别，单独处理
               for (let i = 1; i <= 10; i++) {
-                // 请根据实际资源路径修改这里的路径逻辑
                 const src = `/${state.repoName}/assets/images/${category}/${category}${i}.jpg`;
                 const asset = {
                   id: `${category}-${i}`,
@@ -293,11 +323,14 @@
                 if (exists) {
                   allAssets.push(asset);
                 } else {
-                  // 如果文件不存在，假设已经到达该分类的末尾
                   break;
                 }
               }
             }
+            
+            // 2. 添加内置文本资产
+            allAssets.push(...builtInTextAssets);
+            
             state.allAssets = allAssets;
             state.filteredAssets = allAssets;
             renderAssetList(allAssets);
@@ -337,7 +370,7 @@
           `).join('');
         }
     
-        // 渲染标志列表
+        // 渲染标志列表 (UPDATED to handle text assets)
         function renderAssetList(assets) {
           if (assets.length === 0) {
             assetListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无标志数据</div>';
@@ -358,50 +391,41 @@
               <div class="mb-4">
                 <h3 class="text-sm font-medium text-gray-700 mb-2">${category}</h3>
                 <div class="grid grid-cols-2 gap-2">
-                  ${assetsByCategory[category].map(asset => `
-                    <div class="asset-card" data-id="${asset.id}" data-src="${asset.src}" data-category="${asset.category}">
-                      <div class="bg-gray-100 rounded overflow-hidden aspect-square">
-                        <img src="${asset.src}" alt="${asset.name}" class="w-full h-full object-contain p-1">
-                      </div>
-                      <p class="text-xs text-center mt-1 text-gray-600">${asset.name}</p>
-                    </div>
-                  `).join('')}
+                  ${assetsByCategory[category].map(asset => {
+                    if (asset.category === '文本') {
+                      // 渲染文本资产卡片
+                      return `
+                        <div class="asset-card text-asset-card" 
+                            data-id="${asset.id}" 
+                            data-type="text" 
+                            data-content="${asset.content}"
+                            data-style='${JSON.stringify(asset.style)}'
+                            data-category="${asset.category}">
+                            <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-1 h-16 flex items-center justify-center overflow-hidden">
+                                <p style="font-size: ${asset.style.fontSize}px; font-weight: ${asset.style.fontWeight || 'normal'}; color: ${asset.style.color}">
+                                    ${asset.name}
+                                </p>
+                            </div>
+                            <p class="text-xs text-center mt-1 text-gray-600">${asset.name}</p>
+                        </div>
+                      `;
+                    } else {
+                      // 渲染图片资产卡片
+                      return `
+                        <div class="asset-card" data-id="${asset.id}" data-type="image" data-src="${asset.src}" data-category="${asset.category}">
+                            <div class="bg-gray-100 rounded overflow-hidden aspect-square">
+                                <img src="${asset.src}" alt="${asset.name}" class="w-full h-full object-contain p-1">
+                            </div>
+                            <p class="text-xs text-center mt-1 text-gray-600">${asset.name}</p>
+                        </div>
+                      `;
+                    }
+                  }).join('')}
                 </div>
               </div>
             `;
           }
           assetListEl.innerHTML = html;
-        }
-    
-        // 加载模板到画布
-        async function loadTemplateToCanvas(templateId) {
-          canvas.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-gray-400">加载中...</div>';
-          
-          try {
-            // 确保所有元素取消选中
-            document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
-            
-            const response = await fetch(`/${state.repoName}/templates/${templateId}.json`);
-            const template = await response.json();
-            
-            const templateMeta = state.allTemplates.find(t => t.id === templateId);
-            if (templateMeta) {
-              canvasWidthInput.value = templateMeta.size.width;
-              canvasHeightInput.value = templateMeta.size.height;
-              applyCanvasSize();
-            }
-            
-            renderTemplateElements(template.elements);
-            
-            document.querySelectorAll('.template-card').forEach(card => {
-              card.classList.toggle('active', card.getAttribute('data-id') === templateId);
-            });
-            state.currentTemplate = templateId;
-    
-          } catch (error) {
-            canvas.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-red-500">模板加载失败</div>';
-            console.error('模板加载失败：', error);
-          }
         }
     
         // 添加标志到画布
@@ -411,12 +435,10 @@
           }
           
           const elementId = `asset-${Date.now()}`;
-          
-          // *** 核心修改 1: 创建父容器 div (wrapper) ***
           const wrapper = document.createElement('div');
           wrapper.id = elementId;
           wrapper.className = 'canvas-element selected'; 
-          wrapper.dataset.type = 'image-wrapper'; // 标记为图片容器
+          wrapper.dataset.type = 'image-wrapper';
           
           const img = document.createElement('img');
           img.src = src;
@@ -425,7 +447,6 @@
             img.src = 'https://via.placeholder.com/100?text=标志缺失';
           };
           
-          // 添加缩放手柄到 wrapper
           const handles = ['tl', 'tr', 'bl', 'br'];
           handles.forEach(pos => {
             const handle = document.createElement('div');
@@ -433,9 +454,8 @@
             wrapper.appendChild(handle);
           });
           
-          wrapper.appendChild(img); // 将 img 放入 wrapper
+          wrapper.appendChild(img);
     
-          // 默认位置和尺寸 (50mm x 50mm)
           const defaultSizeMm = 50;
           const canvasWidth = parseFloat(canvasContainer.style.width);
           const canvasHeight = parseFloat(canvasContainer.style.height);
@@ -445,15 +465,55 @@
           wrapper.style.width = `${defaultSizeMm}mm`;
           wrapper.style.height = `${defaultSizeMm}mm`;
           
-          canvas.appendChild(wrapper); // 添加 wrapper 到画布
+          canvas.appendChild(wrapper);
     
-          // 取消其他元素的选中状态
           document.querySelectorAll('.canvas-element').forEach(el => {
             if (el !== wrapper) el.classList.remove('selected');
           });
           
-          // 为新元素设置interact.js交互
           setupInteractForElement(wrapper); 
+        }
+
+        // NEW: 添加文本元素到画布
+        function addTextElementToCanvas(content, style) {
+          if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
+            canvas.innerHTML = '';
+          }
+
+          const elementId = `text-${Date.now()}`;
+          const element = {
+              type: 'text',
+              position: { x: 0, y: 0 }, // 初始位置将重新计算
+              content: content,
+              style: style,
+              editable: true
+          };
+          
+          const domElement = createTextElement(elementId, element);
+
+          const canvasWidth = parseFloat(canvasContainer.style.width); // in mm
+          const canvasHeight = parseFloat(canvasContainer.style.height); // in mm
+          
+          // 初始位置: 靠近画布中心 (CSS position属性)
+          const defaultX = (canvasWidth / 2) - 30; 
+          const defaultY = (canvasHeight / 2) - 10;
+          
+          domElement.style.left = `${defaultX}mm`;
+          domElement.style.top = `${defaultY}mm`;
+
+          canvas.appendChild(domElement);
+
+          // 取消其他元素的选中状态
+          document.querySelectorAll('.canvas-element').forEach(el => {
+              if (el !== domElement) el.classList.remove('selected');
+          });
+
+          // 选中新元素
+          domElement.classList.add('selected');
+          
+          // 确保新元素的初始像素位置被正确设置，以便拖拽
+          domElement.setAttribute('data-x', domElement.offsetLeft);
+          domElement.setAttribute('data-y', domElement.offsetTop);
         }
     
         // 渲染模板元素
@@ -478,10 +538,12 @@
             
             if (domElement) {
               canvas.appendChild(domElement);
-              // *** 修复：为图片和矩形容器添加交互 (拖拽和缩放) ***
-              if (element.type === 'image' || element.type === 'rect') { // 修复了矩形无法缩放的问题
+              if (element.type === 'image' || element.type === 'rect') {
                 setupInteractForElement(domElement); 
               }
+              // 初始化位置数据，以便拖拽
+              domElement.setAttribute('data-x', domElement.offsetLeft);
+              domElement.setAttribute('data-y', domElement.offsetTop);
             }
           });
         }
@@ -500,14 +562,12 @@
           div.style.backgroundColor = element.style.fill || 'transparent';
           div.style.border = `${element.style.strokeWidth || 1}px solid ${element.style.stroke || '#ddd'}`;
 
-          // <<< 修复：为 rect 添加缩放手柄 >>>
           const handles = ['tl', 'tr', 'bl', 'br'];
           handles.forEach(pos => {
             const handle = document.createElement('div');
             handle.className = `resize-handle resize-handle-${pos}`;
             div.appendChild(handle);
           });
-          // <<< 修复结束 >>>
           
           return div;
         }
@@ -520,10 +580,11 @@
           
           div.style.left = `${element.position.x}mm`;
           div.style.top = `${element.position.y}mm`;
+          // 样式属性
           div.style.fontSize = `${element.style.fontSize || 12}px`;
           div.style.fontWeight = element.style.fontWeight || 'normal';
           div.style.color = element.style.color || '#333';
-          div.style.whiteSpace = 'nowrap'; // 防止文本自动换行
+          div.style.whiteSpace = 'nowrap';
           if (element.style.textAlign) div.style.textAlign = element.style.textAlign;
           
           div.innerText = element.content;
@@ -531,13 +592,11 @@
             div.contentEditable = true;
             div.classList.add('editable');
             div.setAttribute('title', '点击编辑');
-            // 文本元素由主选择器处理拖拽，内容编辑已通过 initInteractJs 中的 ignoreFrom 修复。
           }
           
           return div;
         }
     
-        // *** 核心修改 2: 创建图片容器元素 (用于模板加载) ***
         function createImageElement(id, element) {
           const wrapper = document.createElement('div');
           wrapper.id = id;
@@ -551,13 +610,11 @@
             img.src = 'https://via.placeholder.com/60?text=标志缺失';
           };
           
-          // 容器位置和大小
           wrapper.style.left = `${element.position.x}mm`;
           wrapper.style.top = `${element.position.y}mm`;
           wrapper.style.width = `${element.size.width}mm`;
           wrapper.style.height = `${element.size.height}mm`;
     
-          // 添加缩放手柄到 wrapper
           const handles = ['tl', 'tr', 'bl', 'br'];
           handles.forEach(pos => {
             const handle = document.createElement('div');
@@ -570,9 +627,8 @@
           return wrapper; 
         }
     
-        // 初始化interact.js交互（核心功能）
+        // 初始化interact.js交互
         function initInteractJs() {
-          // 使画布元素可拖拽
           interact('.canvas-element')
             .draggable({
               inertia: true, 
@@ -583,50 +639,41 @@
                 })
               ],
               autoScroll: true,
-              // *** 核心修复点：忽略来自缩放手柄和可编辑文本的拖拽事件 ***
-              ignoreFrom: '.resize-handle, [contenteditable="true"]', // 修复了文本无法编辑的问题
+              // FIX: 忽略可编辑文本的拖拽，使其可以正常编辑
+              ignoreFrom: '.resize-handle, [contenteditable="true"]', 
               listeners: {
                 move(event) {
                   const target = event.target;
-                  // 获取当前位置 (px)
                   let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
                   let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
     
-                  // 转换为毫米
                   const mmX = x * PX_TO_MM;
                   const mmY = y * PX_TO_MM;
     
-                  // 更新位置
                   target.style.left = `${mmX}mm`;
                   target.style.top = `${mmY}mm`;
     
-                  // 存储像素位置数据
                   target.setAttribute('data-x', x);
                   target.setAttribute('data-y', y);
                 }
               }
             })
             .on('down', function(event) {
-              // 确保点击手柄时，目标是父元素
               const target = event.target.closest('.canvas-element'); 
               if (!target) return;
     
-              // 选中元素时高亮并显示缩放手柄
               document.querySelectorAll('.canvas-element').forEach(el => {
                 el.classList.remove('selected');
-                // 清除旧的像素坐标，避免多次点击导致的坐标累加问题
                 el.removeAttribute('data-x');
                 el.removeAttribute('data-y');
               });
               
               target.classList.add('selected');
               
-              // 初始化 data-x 和 data-y 为当前元素的像素位置
               target.setAttribute('data-x', target.offsetLeft);
               target.setAttribute('data-y', target.offsetTop);
             });
     
-          // 点击画布空白处取消选中
           interact('#canvas').on('down', function(event) {
             if (event.target === canvas) {
               document.querySelectorAll('.canvas-element').forEach(el => {
@@ -636,22 +683,20 @@
           });
         }
     
-        // *** 核心修改 3: 为单个元素设置缩放功能 ***
+        // 为单个元素设置缩放功能
         function setupInteractForElement(element, enableResize = true) {
-          // 只有图片容器和矩形启用缩放
-          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect') && enableResize) { // 修复了矩形无法缩放的问题
+          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect') && enableResize) {
             interact(element).resizable({
               inertia: true,
               modifiers: [
                 interact.modifiers.restrictSize({
-                  min: { width: 10, height: 10 } // 最小尺寸
+                  min: { width: 10, height: 10 }
                 }),
                 interact.modifiers.restrictRect({
                   restriction: 'parent', 
                   endOnly: true
                 })
               ],
-              // 使用手柄类名定义触发边缘
               edges: { 
                 left: '.resize-handle-tl, .resize-handle-bl', 
                 right: '.resize-handle-tr, .resize-handle-br', 
@@ -660,17 +705,14 @@
               },
               listeners: {
                 move(event) {
-                  const target = event.target; // wrapper div
+                  const target = event.target;
                   
-                  // 获取/设置像素位置
                   let x = (parseFloat(target.getAttribute('data-x')) || 0);
                   let y = (parseFloat(target.getAttribute('data-y')) || 0);
                   
-                  // 计算新的像素位置
                   x += event.deltaRect.left;
                   y += event.deltaRect.top;
     
-                  // 更新宽高和位置（转换为毫米）
                   const mmWidth = event.rect.width * PX_TO_MM;
                   const mmHeight = event.rect.height * PX_TO_MM;
                   const mmX = x * PX_TO_MM;
@@ -681,7 +723,6 @@
                   target.style.left = `${mmX}mm`;
                   target.style.top = `${mmY}mm`;
     
-                  // 存储位置数据（像素）
                   target.setAttribute('data-x', x);
                   target.setAttribute('data-y', y);
                 }
@@ -692,22 +733,19 @@
     
         // 画布尺寸调整
         function applyCanvasSize() {
-          const width = parseInt(canvasWidthInput.value) || 210;
-          const height = parseInt(canvasHeightInput.value) || 148;
+          const width = parseInt(canvasWidthInput.value) || 100;
+          const height = parseInt(canvasHeightInput.value) || 100;
           canvasContainer.style.width = `${width}mm`;
           canvasContainer.style.height = `${height}mm`;
         }
     
-        // *** 新增：删除选中元素的功能函数 ***
+        // 删除选中元素的功能函数
         function deleteSelectedElement() {
-          // 找到当前选中的元素
           const selectedElement = document.querySelector('.canvas-element.selected');
           
-          // 如果找到了，则从 DOM 中移除
           if (selectedElement) {
             selectedElement.remove();
             
-            // 如果画布变空，显示提示信息
             if (canvas.children.length === 0) {
                 canvas.innerHTML = `
                   <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
@@ -725,29 +763,23 @@
             return;
           }
           
-          // 导出前移除所有选中的轮廓和手柄，以保证图像干净
           document.querySelectorAll('.canvas-element').forEach(el => {
             el.classList.remove('selected');
           });
     
           html2canvas(canvas, {
-            scale: 2, // 提高分辨率
-            useCORS: true // 允许跨域图片
+            scale: 2,
+            useCORS: true
           }).then(canvasImage => {
             const imgData = canvasImage.toDataURL('image/png');
             
-            // 恢复选中状态（如果有的话）
-            // 可选：如果需要，可以追踪并恢复选中状态
-    
             if (format === 'pdf') {
               const { jsPDF } = window.jspdf;
               const pdf = new jsPDF({
                 orientation: canvasWidthInput.value > canvasHeightInput.value ? 'l' : 'p',
                 unit: 'mm',
-                // 确保 PDF 尺寸与画布尺寸一致
                 format: [parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value)]
               });
-              // 将图片添加到 PDF，0, 0 为起始位置，宽高与画布尺寸相同
               pdf.addImage(imgData, 'PNG', 0, 0, parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value));
               pdf.save('跨境物流合规面单.pdf');
             } else {
@@ -781,18 +813,14 @@
     
         // 事件监听
         function initEventListeners() {
-          // *** 新增：监听 Delete 和 Backspace 键删除选中元素 ***
           document.addEventListener('keydown', (e) => {
-            // 检查按键是否是 Delete (keyCode 46) 或 Backspace (keyCode 8)
             if (e.key === 'Delete' || e.key === 'Backspace') {
-              // 确保当前焦点不在文本输入框（如搜索框）或 contentEditable 元素内
               const focusedElement = document.activeElement;
               const isInputFocused = (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA');
               const isEditable = focusedElement.hasAttribute('contenteditable') && focusedElement.getAttribute('contenteditable') === 'true';
     
-              // 如果焦点不在输入框或编辑区，则执行删除操作
               if (!isInputFocused && !isEditable) {
-                e.preventDefault(); // 阻止浏览器默认行为（如返回上一页）
+                e.preventDefault();
                 deleteSelectedElement();
               }
             }
@@ -850,12 +878,21 @@
           // 标志搜索
           assetSearchInput.addEventListener('input', filterAssets);
     
-          // 标志点击添加
+          // UPDATED: 标志/文本点击添加
           assetListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.asset-card');
             if (card) {
-              const src = card.getAttribute('data-src');
-              addAssetToCanvas(src);
+              const type = card.getAttribute('data-type');
+              
+              if (type === 'image') {
+                const src = card.getAttribute('data-src');
+                addAssetToCanvas(src);
+              } else if (type === 'text') {
+                const content = card.getAttribute('data-content');
+                // 解析 style 属性，因为它是 JSON 字符串
+                const style = JSON.parse(card.getAttribute('data-style'));
+                addTextElementToCanvas(content, style);
+              }
             }
           });
     
