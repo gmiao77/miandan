@@ -217,6 +217,17 @@
     </div>
   </div>
 
+  <div id="propertyPanel" class="fixed top-16 right-6 w-56 p-4 bg-white rounded-lg shadow-xl hidden z-20">
+    <h3 class="text-sm font-bold mb-3 border-b pb-2 text-gray-700">文本属性</h3>
+    <div id="textControls" class="space-y-3">
+      <div class="flex justify-between items-center">
+        <label for="fontSizeSelect" class="text-sm text-gray-600">字号 (px):</label>
+        <select id="fontSizeSelect" class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500">
+          </select>
+      </div>
+    </div>
+  </div>
+
 
     <script>
         const state = {
@@ -228,32 +239,18 @@
           repoName: 'miandan' // 你的仓库名称
         };
     
-        // NEW: 内置文本资产定义
+        // UPDATED: 只保留一个通用的文本资产
         const builtInTextAssets = [
           { 
-            id: 'text-title', 
+            id: 'text-default', 
             category: '文本', 
-            name: '标题文本', 
-            content: '请在此输入标题', 
-            style: { fontSize: 16, fontWeight: 'bold', color: '#000', textAlign: 'center' } 
-          },
-          { 
-            id: 'text-normal', 
-            category: '文本', 
-            name: '普通文本', 
-            content: '点击编辑文本内容', 
-            style: { fontSize: 10, color: '#333' } 
-          },
-          { 
-            id: 'text-small', 
-            category: '文本', 
-            name: '小字提示', 
-            content: '注意：易碎品', 
-            style: { fontSize: 8, color: '#e53e3e' } 
+            name: '添加文本', 
+            content: '可移动、双击编辑', 
+            style: { fontSize: 12, fontWeight: 'normal', color: '#000' } 
           }
         ];
     
-        // UPDATED: 资产分类，加入了“文本”
+        // UPDATED: 资产分类
         const assetCategories = [
           '代理', '法国标', '化妆品', '能效', 
           '纽扣电池', '西班牙回收', '窒息警告', '文本', '其他'
@@ -275,6 +272,10 @@
         const assetTab = document.getElementById('assetTab');
         const templateLibrary = document.getElementById('templateLibrary');
         const assetLibrary = document.getElementById('assetLibrary');
+        // NEW: 属性面板DOM
+        const propertyPanel = document.getElementById('propertyPanel');
+        const fontSizeSelect = document.getElementById('fontSizeSelect');
+        let selectedTextElement = null; // 跟踪当前选中的文本元素
     
         // 像素到毫米的转换因子 (1px ≈ 0.264583mm, 1mm ≈ 3.779528px)
         const MM_TO_PX = 3.779528;
@@ -286,8 +287,19 @@
             loadTemplateMetadata(),
             loadAllAssets()
           ]);
+          populateFontSizeOptions(); // NEW: 填充字号选项
           initEventListeners();
           initInteractJs(); // 初始化interact.js
+        }
+
+        // NEW: 填充字号选项
+        function populateFontSizeOptions() {
+            for (let i = 8; i <= 36; i += 2) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i + 'px';
+                fontSizeSelect.appendChild(option);
+            }
         }
     
         // 加载模板元数据
@@ -303,7 +315,7 @@
           }
         }
     
-        // 加载标志资源 (UPDATED to include text assets)
+        // 加载标志资源
         async function loadAllAssets() {
           try {
             const allAssets = [];
@@ -370,7 +382,7 @@
           `).join('');
         }
     
-        // 渲染标志列表 (UPDATED to handle text assets)
+        // 渲染标志列表
         function renderAssetList(assets) {
           if (assets.length === 0) {
             assetListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无标志数据</div>';
@@ -471,10 +483,11 @@
             if (el !== wrapper) el.classList.remove('selected');
           });
           
+          wrapper.classList.add('selected');
           setupInteractForElement(wrapper); 
         }
 
-        // NEW: 添加文本元素到画布
+        // 添加文本元素到画布
         function addTextElementToCanvas(content, style) {
           if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
             canvas.innerHTML = '';
@@ -483,7 +496,7 @@
           const elementId = `text-${Date.now()}`;
           const element = {
               type: 'text',
-              position: { x: 0, y: 0 }, // 初始位置将重新计算
+              position: { x: 0, y: 0 }, 
               content: content,
               style: style,
               editable: true
@@ -491,10 +504,9 @@
           
           const domElement = createTextElement(elementId, element);
 
-          const canvasWidth = parseFloat(canvasContainer.style.width); // in mm
-          const canvasHeight = parseFloat(canvasContainer.style.height); // in mm
+          const canvasWidth = parseFloat(canvasContainer.style.width); 
+          const canvasHeight = parseFloat(canvasContainer.style.height);
           
-          // 初始位置: 靠近画布中心 (CSS position属性)
           const defaultX = (canvasWidth / 2) - 30; 
           const defaultY = (canvasHeight / 2) - 10;
           
@@ -503,22 +515,23 @@
 
           canvas.appendChild(domElement);
 
-          // 取消其他元素的选中状态
           document.querySelectorAll('.canvas-element').forEach(el => {
               if (el !== domElement) el.classList.remove('selected');
           });
 
-          // 选中新元素
           domElement.classList.add('selected');
           
-          // 确保新元素的初始像素位置被正确设置，以便拖拽
+          // 初始化像素位置，确保可以拖拽
           domElement.setAttribute('data-x', domElement.offsetLeft);
           domElement.setAttribute('data-y', domElement.offsetTop);
+          
+          showPropertyPanel(domElement); // NEW: 插入后显示属性面板
         }
     
         // 渲染模板元素
         function renderTemplateElements(elements) {
           canvas.innerHTML = '';
+          showPropertyPanel(null); // 切换模板时隐藏属性面板
           
           elements.forEach((element, index) => {
             const elementId = `element-${index}-${Date.now()}`;
@@ -541,14 +554,13 @@
               if (element.type === 'image' || element.type === 'rect') {
                 setupInteractForElement(domElement); 
               }
-              // 初始化位置数据，以便拖拽
               domElement.setAttribute('data-x', domElement.offsetLeft);
               domElement.setAttribute('data-y', domElement.offsetTop);
             }
           });
         }
     
-        // 创建元素工具函数
+        // 创建元素工具函数 (Rect, Text, Image 保持不变)
         function createRectElement(id, element) {
           const div = document.createElement('div');
           div.id = id;
@@ -580,7 +592,6 @@
           
           div.style.left = `${element.position.x}mm`;
           div.style.top = `${element.position.y}mm`;
-          // 样式属性
           div.style.fontSize = `${element.style.fontSize || 12}px`;
           div.style.fontWeight = element.style.fontWeight || 'normal';
           div.style.color = element.style.color || '#333';
@@ -639,7 +650,7 @@
                 })
               ],
               autoScroll: true,
-              // FIX: 忽略可编辑文本的拖拽，使其可以正常编辑
+              // 忽略手柄和可编辑文本区域，允许点击编辑
               ignoreFrom: '.resize-handle, [contenteditable="true"]', 
               listeners: {
                 move(event) {
@@ -660,7 +671,11 @@
             })
             .on('down', function(event) {
               const target = event.target.closest('.canvas-element'); 
-              if (!target) return;
+              
+              if (!target) {
+                showPropertyPanel(null); // 如果点击空白处，隐藏面板
+                return;
+              }
     
               document.querySelectorAll('.canvas-element').forEach(el => {
                 el.classList.remove('selected');
@@ -672,6 +687,8 @@
               
               target.setAttribute('data-x', target.offsetLeft);
               target.setAttribute('data-y', target.offsetTop);
+
+              showPropertyPanel(target); // NEW: 选中元素时显示属性面板
             });
     
           interact('#canvas').on('down', function(event) {
@@ -679,6 +696,7 @@
               document.querySelectorAll('.canvas-element').forEach(el => {
                 el.classList.remove('selected');
               });
+              showPropertyPanel(null); // 点击画布背景时隐藏面板
             }
           });
         }
@@ -730,11 +748,33 @@
             });
           }
         }
+        
+        // NEW: 显示/隐藏属性面板，并绑定选中元素
+        function showPropertyPanel(element) {
+            if (element && element.dataset.type === 'text') {
+                selectedTextElement = element;
+                // 读取当前字号并设置下拉框
+                const currentSize = parseFloat(element.style.fontSize) || 12;
+                fontSizeSelect.value = currentSize;
+                propertyPanel.classList.remove('hidden');
+            } else {
+                selectedTextElement = null;
+                propertyPanel.classList.add('hidden');
+            }
+        }
+
+        // NEW: 更新文本属性（字号）
+        function updateTextProperties() {
+            if (selectedTextElement) {
+                const newSize = fontSizeSelect.value;
+                selectedTextElement.style.fontSize = `${newSize}px`;
+            }
+        }
     
         // 画布尺寸调整
         function applyCanvasSize() {
-          const width = parseInt(canvasWidthInput.value) || 100;
-          const height = parseInt(canvasHeightInput.value) || 100;
+          const width = parseInt(canvasWidthInput.value) || 210;
+          const height = parseInt(canvasHeightInput.value) || 148;
           canvasContainer.style.width = `${width}mm`;
           canvasContainer.style.height = `${height}mm`;
         }
@@ -745,6 +785,7 @@
           
           if (selectedElement) {
             selectedElement.remove();
+            showPropertyPanel(null); // 删除后隐藏面板
             
             if (canvas.children.length === 0) {
                 canvas.innerHTML = `
@@ -766,6 +807,7 @@
           document.querySelectorAll('.canvas-element').forEach(el => {
             el.classList.remove('selected');
           });
+          showPropertyPanel(null); // 导出前隐藏面板
     
           html2canvas(canvas, {
             scale: 2,
@@ -813,6 +855,7 @@
     
         // 事件监听
         function initEventListeners() {
+          // 监听 Delete 和 Backspace 键删除选中元素
           document.addEventListener('keydown', (e) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
               const focusedElement = document.activeElement;
@@ -823,6 +866,16 @@
                 e.preventDefault();
                 deleteSelectedElement();
               }
+            }
+          });
+          
+          // NEW: 监听字号选择框变化
+          fontSizeSelect.addEventListener('change', updateTextProperties);
+          
+          // NEW: 监听全局点击，如果点击不在画布或属性面板内，则隐藏面板
+          document.addEventListener('click', (e) => {
+            if (!e.target.closest('#canvas') && !e.target.closest('#propertyPanel')) {
+                showPropertyPanel(null); 
             }
           });
     
@@ -878,7 +931,7 @@
           // 标志搜索
           assetSearchInput.addEventListener('input', filterAssets);
     
-          // UPDATED: 标志/文本点击添加
+          // 标志/文本点击添加
           assetListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.asset-card');
             if (card) {
@@ -889,7 +942,6 @@
                 addAssetToCanvas(src);
               } else if (type === 'text') {
                 const content = card.getAttribute('data-content');
-                // 解析 style 属性，因为它是 JSON 字符串
                 const style = JSON.parse(card.getAttribute('data-style'));
                 addTextElementToCanvas(content, style);
               }
