@@ -6,7 +6,15 @@
       "category": "物流",
       "thumbnail": "./assets/thumbnails/sender-info.jpg",
       "description": "包含寄件人信息、收件人信息及跨境物流警示",
-      "size": { "width": 70, "height": 70, "unit": "mm" }
+      "size": { "width": 100, "height": 100, "unit": "mm" }
+    },
+    {
+      "id": "text",
+      "name": "预置文本",
+      "category": "物流",
+      "thumbnail": "./assets/thumbnails/sender-info.jpg",
+      "description": "文本",
+      "size": { "width": 40, "height": 30, "unit": "mm" }
     },
     {
       "id": "manufacturer-info",
@@ -14,7 +22,7 @@
       "category": "物流",
       "thumbnail": "./assets/thumbnails/manufacturer-info.jpg",
       "description": "包含制造商信息、欧盟代表及产品合规标识",
-      "size": { "width": 100, "height": 100, "unit": "mm" }
+      "size": { "width": 70, "height": 70, "unit": "mm" }
     }
   ]
 }
