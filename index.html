@@ -39,11 +39,12 @@
         @apply absolute select-none;
       }
       .editable {
-        @apply cursor-text outline-none;
+        /* 新增内边距和行高设置，确保文本在容器内居中且易于编辑 */
+        @apply cursor-text outline-none p-1 inline-block h-full w-full leading-normal; 
       }
       /* 缩放手柄样式 */
       .resize-handle {
-        /* *** CSS 修复: 提高 z-index 确保手柄在文本元素上 *** */
+        /* *** 修复: 提高 z-index 确保手柄位于文本元素之上 *** */
         @apply absolute w-4 h-4 bg-blue-500 rounded-full border border-white shadow-md z-20 hidden; 
       }
       /* 选中时显示手柄 */
@@ -69,7 +70,7 @@
         height: 100%;
         object-fit: contain;
       }
-      /* 确保文本元素能自动占据容器大小 */
+      /* 确保文本元素容器能控制文本流 */
       .canvas-element[data-type="text-wrapper"] {
         @apply overflow-hidden;
       }
@@ -91,7 +92,7 @@
       <i class="fa fa-square-o text-xl mb-1"></i>
       <span class="text-xs">形状</span>
     </button>
-    <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
+    <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors"> 
       <i class="fa fa-picture-o text-xl mb-1"></i>
       <span class="text-xs">标志</span>
     </button>
@@ -107,7 +108,7 @@
         <button id="templateTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
           模板库
         </button>
-        <button id="textTab" class="flex-1 py-3 text-center text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+        <button id="textTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
           文本库
         </button>
         <button id="assetTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
@@ -121,9 +122,9 @@
         <input type="text" id="templateSearch" placeholder="搜索合规模板" 
                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
         <div class="flex mt-2 space-x-1">
-          <button class="px-3 py-1 bg-blue-500 text-white rounded-md text-sm template-category-btn" data-category="all">全部</button>
-          <button class="px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100 template-category-btn" data-category="物流">物流</button>
-          <button class="px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100 template-category-btn" data-category="文本">文本</button>
+          <button class="template-category-btn px-3 py-1 bg-blue-500 text-white rounded-md text-sm" data-category="all">全部</button>
+          <button class="template-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="物流">物流</button>
+          <button class="template-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="文本">文本</button>
         </div>
       </div>
       <div id="templateList" class="space-y-2">
@@ -131,7 +132,7 @@
       </div>
     </div>
     
-    <div id="textLibrary" class="flex-1 overflow-y-auto scrollbar-hide p-3">
+    <div id="textLibrary" class="hidden flex-1 overflow-y-auto scrollbar-hide p-3">
       <div id="addBlankTextCard" class="text-action-card">
         <i class="fa fa-plus text-2xl text-blue-500 mb-2"></i>
         <p class="text-sm font-medium text-gray-700">添加空白文本框</p>
@@ -256,7 +257,7 @@
         ];
         
         const TEXT_TEMPLATE_ID = 'text-pre'; // 预设文本模板ID
-
+    
         // DOM元素
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvasContainer');
@@ -291,15 +292,15 @@
             loadTemplateMetadata(),
             loadAllAssets()
           ]);
-          renderTextLibrary(); // 新增：渲染文本库
           initEventListeners();
           initInteractJs(); // 初始化interact.js
+          switchTab('textTab'); // 默认激活文本库
         }
     
-        // 加载模板元数据
+        // 加载模板元数据 (使用用户提供的模拟数据)
         async function loadTemplateMetadata() {
           try {
-            // 注意：这里我们使用用户提供的模拟数据代替实际的fetch
+            // 使用用户提供的 mock metadata.json 数据
             const mockData = {
                 "templates": [
                     {
@@ -329,12 +330,10 @@
                 ]
             };
 
-            // const response = await fetch(`/${state.repoName}/templates/metadata.json`);
-            // const data = await response.json();
             const data = mockData; 
-
             state.allTemplates = data.templates;
             renderTemplateList(data.templates);
+            renderTextLibrary(); // 渲染文本模板
           } catch (error) {
             templateListEl.innerHTML = '<div class="text-center text-red-500 py-10">模板加载失败</div>';
             console.error('模板元数据加载失败：', error);
@@ -382,14 +381,16 @@
           });
         }
     
-        // 渲染模板列表
+        // 渲染模板列表 (保持不变)
         function renderTemplateList(templates) {
           if (templates.length === 0) {
             templateListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无合规模板数据</div>';
             return;
           }
     
-          templateListEl.innerHTML = templates.map(template => `
+          templateListEl.innerHTML = templates
+            .filter(t => t.id !== TEXT_TEMPLATE_ID) // 文本模板在另一处渲染
+            .map(template => `
             <div class="template-card" data-id="${template.id}">
               <div class="aspect-[4/3] bg-gray-100 rounded overflow-hidden mb-2">
                 <img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-full h-full object-cover">
@@ -408,7 +409,7 @@
             if (textTemplate) {
                 textTemplateListEl.innerHTML = `
                     <div class="template-card" data-id="${textTemplate.id}" data-template-type="text">
-                        <div class="aspect-[4/3] bg-gray-100 rounded overflow-hidden mb-2">
+                        <div class="aspect-[4/3] bg-gray-100 rounded overflow-hidden mb-2 flex items-center justify-center">
                             <i class="fa fa-file-text-o text-5xl text-gray-400 p-4"></i>
                         </div>
                         <h3 class="text-sm font-medium text-gray-800">${textTemplate.name}</h3>
@@ -457,31 +458,32 @@
           assetListEl.innerHTML = html;
         }
     
-        // 加载模板到画布 (保持不变)
+        // 加载模板到画布 (模拟模板内容)
         async function loadTemplateToCanvas(templateId) {
           canvas.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-gray-400">加载中...</div>';
           
           try {
-            // 确保所有元素取消选中
             document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
             
-            // 模拟加载模板 JSON 内容
             let template;
-            if (templateId === 'text-pre') {
+            if (templateId === TEXT_TEMPLATE_ID) {
+                // 模拟 txt-pre.json 模板内容
                 template = {
                     "elements": [
                         {
                             "type": "text",
-                            "content": "此处为预设文本内容。",
+                            "content": "预设文本：版权所有，违者必究。",
                             "position": { "x": 5, "y": 5 },
                             "size": { "width": 30, "height": 10 },
-                            "style": { "fontSize": 14, "fontWeight": "bold", "color": "#1D4ED8" },
+                            "style": { "fontSize": 12, "fontWeight": "bold", "color": "#7C3AED" },
                             "editable": true
                         }
                     ]
                 };
             } else {
-                // 模拟其他模板加载
+                // 模拟其他模板内容 (无法实际获取，使用通用结构)
+                // const response = await fetch(`/${state.repoName}/templates/${templateId}.json`);
+                // template = await response.json();
                 template = {
                     "elements": [
                         {
@@ -492,16 +494,15 @@
                         },
                         {
                             "type": "text",
-                            "content": "寄件人信息",
+                            "content": "寄件人/制造商信息 (模拟)",
                             "position": { "x": 5, "y": 5 },
-                            "style": { "fontSize": 12 },
+                            "size": { "width": 90, "height": 10 },
+                            "style": { "fontSize": 12, "color": "#000000" },
                             "editable": true
                         }
                     ]
                 };
             }
-            // const response = await fetch(`/${state.repoName}/templates/${templateId}.json`);
-            // const template = await response.json();
             
             const templateMeta = state.allTemplates.find(t => t.id === templateId);
             if (templateMeta) {
@@ -525,7 +526,7 @@
         
         // <<< 新增：添加空白文本框到画布 >>>
         function addBlankTextToCanvas() {
-            if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
+            if (canvas.children.length === 1 && canvas.children[0].classList.contains('justify-center')) {
                 canvas.innerHTML = '';
             }
             
@@ -535,7 +536,7 @@
             const defaultElement = {
                 type: 'text',
                 content: '双击此处编辑文本',
-                position: { x: 10, y: 10 },
+                position: { x: 0, y: 0 }, // 初始值，将被覆盖
                 size: { width: 50, height: 10 },
                 style: { fontSize: 16, fontWeight: 'normal', color: '#000000', textAlign: 'left' },
                 editable: true
@@ -546,9 +547,10 @@
             // 默认位置和尺寸 (50mm x 10mm)
             const defaultWidth = 50;
             const defaultHeight = 10;
-            const canvasWidth = parseFloat(canvasContainer.style.width);
-            const canvasHeight = parseFloat(canvasContainer.style.height);
+            const canvasWidth = parseFloat(canvasContainer.style.width.replace('mm', ''));
+            const canvasHeight = parseFloat(canvasContainer.style.height.replace('mm', ''));
             
+            // 居中设置
             domElement.style.left = `${(canvasWidth - defaultWidth) / 2}mm`;
             domElement.style.top = `${(canvasHeight - defaultHeight) / 2}mm`;
             domElement.style.width = `${defaultWidth}mm`;
@@ -556,11 +558,10 @@
             
             canvas.appendChild(domElement); 
     
-            // 取消其他元素的选中状态
+            // 激活选中状态
             document.querySelectorAll('.canvas-element').forEach(el => {
                 if (el !== domElement) el.classList.remove('selected');
             });
-            
             domElement.classList.add('selected');
 
             // 为新元素设置interact.js交互
@@ -569,17 +570,16 @@
 
         // 添加标志到画布 (保持不变)
         function addAssetToCanvas(src) {
-          if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
+          if (canvas.children.length === 1 && canvas.children[0].classList.contains('justify-center')) {
             canvas.innerHTML = '';
           }
           
           const elementId = `asset-${Date.now()}`;
           
-          // *** 核心修改 1: 创建父容器 div (wrapper) ***
           const wrapper = document.createElement('div');
           wrapper.id = elementId;
           wrapper.className = 'canvas-element selected'; 
-          wrapper.dataset.type = 'image-wrapper'; // 标记为图片容器
+          wrapper.dataset.type = 'image-wrapper'; 
           
           const img = document.createElement('img');
           img.src = src;
@@ -596,21 +596,21 @@
             wrapper.appendChild(handle);
           });
           
-          wrapper.appendChild(img); // 将 img 放入 wrapper
+          wrapper.appendChild(img); 
     
           // 默认位置和尺寸 (50mm x 50mm)
           const defaultSizeMm = 50;
-          const canvasWidth = parseFloat(canvasContainer.style.width);
-          const canvasHeight = parseFloat(canvasContainer.style.height);
+          const canvasWidth = parseFloat(canvasContainer.style.width.replace('mm', ''));
+          const canvasHeight = parseFloat(canvasContainer.style.height.replace('mm', ''));
           
           wrapper.style.left = `${(canvasWidth - defaultSizeMm) / 2}mm`;
           wrapper.style.top = `${(canvasHeight - defaultSizeMm) / 2}mm`;
           wrapper.style.width = `${defaultSizeMm}mm`;
           wrapper.style.height = `${defaultSizeMm}mm`;
           
-          canvas.appendChild(wrapper); // 添加 wrapper 到画布
+          canvas.appendChild(wrapper); 
     
-          // 取消其他元素的选中状态
+          // 激活选中状态
           document.querySelectorAll('.canvas-element').forEach(el => {
             if (el !== wrapper) el.classList.remove('selected');
           });
@@ -619,7 +619,7 @@
           setupInteractForElement(wrapper); 
         }
     
-        // 渲染模板元素 (保持不变)
+        // 渲染模板元素 (更新以处理新的 text-wrapper)
         function renderTemplateElements(elements) {
           canvas.innerHTML = '';
           
@@ -632,7 +632,7 @@
                 domElement = createRectElement(elementId, element);
                 break;
               case 'text':
-                domElement = createTextElement(elementId, element);
+                domElement = createTextElement(elementId, element); // 使用新的 createTextElement
                 break;
               case 'image':
                 domElement = createImageElement(elementId, element);
@@ -641,7 +641,7 @@
             
             if (domElement) {
               canvas.appendChild(domElement);
-              // *** 修复：为图片和矩形容器添加交互 (拖拽和缩放) ***
+              // 确保所有可操作元素都设置交互
               if (element.type === 'image' || element.type === 'rect' || element.type === 'text') { 
                 setupInteractForElement(domElement); 
               }
@@ -649,7 +649,7 @@
           });
         }
     
-        // 创建元素工具函数 (保持不变)
+        // 创建矩形元素 (保持不变)
         function createRectElement(id, element) {
           const div = document.createElement('div');
           div.id = id;
@@ -663,61 +663,62 @@
           div.style.backgroundColor = element.style.fill || 'transparent';
           div.style.border = `${element.style.strokeWidth || 1}px solid ${element.style.stroke || '#ddd'}`;
 
-          // <<< 修复：为 rect 添加缩放手柄 >>>
           const handles = ['tl', 'tr', 'bl', 'br'];
           handles.forEach(pos => {
             const handle = document.createElement('div');
             handle.className = `resize-handle resize-handle-${pos}`;
             div.appendChild(handle);
           });
-          // <<< 修复结束 >>>
           
           return div;
         }
     
         // <<< 核心修改: 创建文本容器元素 (支持缩放和编辑) >>>
         function createTextElement(id, element) {
-          // 创建外层容器（用于定位和缩放）
-          const wrapper = document.createElement('div');
-          wrapper.id = id;
-          wrapper.className = 'canvas-element';
-          wrapper.dataset.type = 'text-wrapper'; // 标记为文本容器
-          
-          // 添加缩放手柄到 wrapper
-          const handles = ['tl', 'tr', 'bl', 'br'];
-          handles.forEach(pos => {
-            const handle = document.createElement('div');
-            handle.className = `resize-handle resize-handle-${pos}`;
-            wrapper.appendChild(handle);
-          });
-          
-          // 创建实际的文本元素（用于显示和编辑）
-          const textEl = document.createElement('span'); // 使用 span 确保内容不被 wrapper 的 overflow 影响
-          textEl.className = 'editable inline-block h-full w-full p-0 leading-normal'; // 确保文本占据容器
-          textEl.innerText = element.content;
-          textEl.style.fontSize = `${element.style.fontSize || 12}px`;
-          textEl.style.fontWeight = element.style.fontWeight || 'normal';
-          textEl.style.color = element.style.color || '#333';
-          textEl.style.whiteSpace = 'normal'; // 允许换行，但通过容器限制大小
-          textEl.style.wordBreak = 'break-all';
-          if (element.style.textAlign) textEl.style.textAlign = element.style.textAlign;
-          
-          if (element.editable) {
-            textEl.contentEditable = true;
-            textEl.setAttribute('title', '双击编辑');
-          }
-          
-          wrapper.style.left = `${element.position.x}mm`;
-          wrapper.style.top = `${element.position.y}mm`;
-          wrapper.style.width = `${element.size.width}mm`;
-          wrapper.style.height = `${element.size.height}mm`;
-          
-          wrapper.appendChild(textEl);
-          
-          return wrapper;
+            // 创建外层容器（用于定位和缩放）
+            const wrapper = document.createElement('div');
+            wrapper.id = id;
+            wrapper.className = 'canvas-element';
+            wrapper.dataset.type = 'text-wrapper'; // 标记为文本容器
+            
+            // 添加缩放手柄到 wrapper
+            const handles = ['tl', 'tr', 'bl', 'br'];
+            handles.forEach(pos => {
+                const handle = document.createElement('div');
+                handle.className = `resize-handle resize-handle-${pos}`;
+                wrapper.appendChild(handle);
+            });
+            
+            // 创建实际的文本元素（用于显示和编辑）
+            const textEl = document.createElement('span'); 
+            textEl.className = 'editable'; // 使用新的 .editable 样式
+            textEl.innerText = element.content;
+            textEl.style.fontSize = `${element.style.fontSize || 12}px`;
+            textEl.style.fontWeight = element.style.fontWeight || 'normal';
+            textEl.style.color = element.style.color || '#333';
+            textEl.style.whiteSpace = 'normal'; // 允许换行
+            textEl.style.wordBreak = 'break-word'; // 处理长单词
+            if (element.style.textAlign) textEl.style.textAlign = element.style.textAlign;
+            
+            if (element.editable) {
+                textEl.contentEditable = true;
+                textEl.setAttribute('title', '双击编辑');
+            }
+            
+            // 应用尺寸和位置 (使用 size 和 position 属性)
+            if (element.size) {
+                wrapper.style.width = `${element.size.width}mm`;
+                wrapper.style.height = `${element.size.height}mm`;
+            }
+            wrapper.style.left = `${element.position.x}mm`;
+            wrapper.style.top = `${element.position.y}mm`;
+            
+            wrapper.appendChild(textEl);
+            
+            return wrapper;
         }
     
-        // 创建图片容器元素 (用于模板加载) (保持不变)
+        // 创建图片容器元素 (保持不变)
         function createImageElement(id, element) {
           const wrapper = document.createElement('div');
           wrapper.id = id;
@@ -731,13 +732,11 @@
             img.src = 'https://via.placeholder.com/60?text=标志缺失';
           };
           
-          // 容器位置和大小
           wrapper.style.left = `${element.position.x}mm`;
           wrapper.style.top = `${element.position.y}mm`;
           wrapper.style.width = `${element.size.width}mm`;
           wrapper.style.height = `${element.size.height}mm`;
     
-          // 添加缩放手柄到 wrapper
           const handles = ['tl', 'tr', 'bl', 'br'];
           handles.forEach(pos => {
             const handle = document.createElement('div');
@@ -750,9 +749,8 @@
           return wrapper; 
         }
     
-        // 初始化interact.js交互（核心功能）(保持不变)
+        // 初始化interact.js交互（核心功能）
         function initInteractJs() {
-          // 使画布元素可拖拽
           interact('.canvas-element')
             .draggable({
               inertia: true, 
@@ -763,45 +761,37 @@
                 })
               ],
               autoScroll: true,
-              // *** 核心修复点：忽略来自缩放手柄和可编辑文本的拖拽事件 ***
-              ignoreFrom: '.resize-handle, [contenteditable="true"]', // 修复了文本无法编辑的问题
+              // 忽略来自缩放手柄和可编辑文本span的拖拽事件
+              ignoreFrom: '.resize-handle, [contenteditable="true"]', 
               listeners: {
                 move(event) {
                   const target = event.target;
-                  // 获取当前位置 (px)
                   let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
                   let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
     
-                  // 转换为毫米
                   const mmX = x * PX_TO_MM;
                   const mmY = y * PX_TO_MM;
     
-                  // 更新位置
                   target.style.left = `${mmX}mm`;
                   target.style.top = `${mmY}mm`;
     
-                  // 存储像素位置数据
                   target.setAttribute('data-x', x);
                   target.setAttribute('data-y', y);
                 }
               }
             })
             .on('down', function(event) {
-              // 确保点击手柄时，目标是父元素
               const target = event.target.closest('.canvas-element'); 
               if (!target) return;
     
-              // 选中元素时高亮并显示缩放手柄
               document.querySelectorAll('.canvas-element').forEach(el => {
                 el.classList.remove('selected');
-                // 清除旧的像素坐标，避免多次点击导致的坐标累加问题
                 el.removeAttribute('data-x');
                 el.removeAttribute('data-y');
               });
               
               target.classList.add('selected');
               
-              // 初始化 data-x 和 data-y 为当前元素的像素位置
               target.setAttribute('data-x', target.offsetLeft);
               target.setAttribute('data-y', target.offsetTop);
             });
@@ -816,22 +806,21 @@
           });
         }
     
-        // *** 核心修改 3: 为单个元素设置缩放功能 ***
+        // 为单个元素设置缩放功能
         function setupInteractForElement(element, enableResize = true) {
-          // 只有图片容器、矩形和文本容器启用缩放
-          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect' || element.dataset.type === 'text-wrapper') && enableResize) {
+          // 启用 image-wrapper, rect, 和 text-wrapper 的缩放
+          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect' || element.dataset.type === 'text-wrapper') && enableResize) { 
             interact(element).resizable({
               inertia: true,
               modifiers: [
                 interact.modifiers.restrictSize({
-                  min: { width: 10, height: 10 } // 最小尺寸
+                  min: { width: 10, height: 10 } 
                 }),
                 interact.modifiers.restrictRect({
                   restriction: 'parent', 
                   endOnly: true
                 })
               ],
-              // 使用手柄类名定义触发边缘
               edges: { 
                 left: '.resize-handle-tl, .resize-handle-bl', 
                 right: '.resize-handle-tr, .resize-handle-br', 
@@ -840,17 +829,14 @@
               },
               listeners: {
                 move(event) {
-                  const target = event.target; // wrapper div
+                  const target = event.target; 
                   
-                  // 获取/设置像素位置
                   let x = (parseFloat(target.getAttribute('data-x')) || 0);
                   let y = (parseFloat(target.getAttribute('data-y')) || 0);
                   
-                  // 计算新的像素位置
                   x += event.deltaRect.left;
                   y += event.deltaRect.top;
     
-                  // 更新宽高和位置（转换为毫米）
                   const mmWidth = event.rect.width * PX_TO_MM;
                   const mmHeight = event.rect.height * PX_TO_MM;
                   const mmX = x * PX_TO_MM;
@@ -861,7 +847,6 @@
                   target.style.left = `${mmX}mm`;
                   target.style.top = `${mmY}mm`;
     
-                  // 存储位置数据（像素）
                   target.setAttribute('data-x', x);
                   target.setAttribute('data-y', y);
                 }
@@ -878,16 +863,13 @@
           canvasContainer.style.height = `${height}mm`;
         }
     
-        // *** 新增：删除选中元素的功能函数 (保持不变) ***
+        // 删除选中元素的功能函数 (保持不变)
         function deleteSelectedElement() {
-          // 找到当前选中的元素
           const selectedElement = document.querySelector('.canvas-element.selected');
           
-          // 如果找到了，则从 DOM 中移除
           if (selectedElement) {
             selectedElement.remove();
             
-            // 如果画布变空，显示提示信息
             if (canvas.children.length === 0) {
                 canvas.innerHTML = `
                   <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
@@ -905,29 +887,23 @@
             return;
           }
           
-          // 导出前移除所有选中的轮廓和手柄，以保证图像干净
           document.querySelectorAll('.canvas-element').forEach(el => {
             el.classList.remove('selected');
           });
     
           html2canvas(canvas, {
-            scale: 2, // 提高分辨率
-            useCORS: true // 允许跨域图片
+            scale: 2, 
+            useCORS: true 
           }).then(canvasImage => {
             const imgData = canvasImage.toDataURL('image/png');
             
-            // 恢复选中状态（如果有的话）
-            // 可选：如果需要，可以追踪并恢复选中状态
-    
             if (format === 'pdf') {
               const { jsPDF } = window.jspdf;
               const pdf = new jsPDF({
                 orientation: canvasWidthInput.value > canvasHeightInput.value ? 'l' : 'p',
                 unit: 'mm',
-                // 确保 PDF 尺寸与画布尺寸一致
                 format: [parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value)]
               });
-              // 将图片添加到 PDF，0, 0 为起始位置，宽高与画布尺寸相同
               pdf.addImage(imgData, 'PNG', 0, 0, parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value));
               pdf.save('跨境物流合规面单.pdf');
             } else {
@@ -959,7 +935,7 @@
           renderAssetList(filtered);
         }
         
-        // 标签页切换逻辑
+        // 标签页切换逻辑 (新增 textTab 处理)
         function switchTab(activeTabId) {
             const tabs = [
                 { id: 'templateTab', library: templateLibrary },
@@ -982,9 +958,8 @@
         }
 
     
-        // 事件监听
+        // 事件监听 (新增文本库事件)
         function initEventListeners() {
-          // *** 新增：监听 Delete 和 Backspace 键删除选中元素 (保持不变) ***
           document.addEventListener('keydown', (e) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
               const focusedElement = document.activeElement;
@@ -1013,7 +988,7 @@
             renderTemplateList(filtered);
           });
           
-          // 模板分类筛选 (更新以支持文本分类)
+          // 模板分类筛选 
           document.querySelectorAll('.template-category-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
               const category = e.target.getAttribute('data-category');
@@ -1043,7 +1018,7 @@
           // 添加空白文本框
           addBlankTextCard.addEventListener('click', addBlankTextToCanvas);
 
-          // 预设文本模板点击（使用与模板库相同的加载逻辑）
+          // 预设文本模板点击
           textTemplateListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.template-card');
             if (card) {
@@ -1053,7 +1028,7 @@
           });
           // <<< 新增结束 >>>
     
-          // 标志分类筛选 (保持不变)
+          // 标志分类筛选
           document.querySelectorAll('.asset-category-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
               document.querySelectorAll('.asset-category-btn').forEach(b => {
@@ -1068,10 +1043,10 @@
             });
           });
     
-          // 标志搜索 (保持不变)
+          // 标志搜索
           assetSearchInput.addEventListener('input', filterAssets);
     
-          // 标志点击添加 (保持不变)
+          // 标志点击添加
           assetListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.asset-card');
             if (card) {
@@ -1080,10 +1055,10 @@
             }
           });
     
-          // 画布尺寸应用 (保持不变)
+          // 画布尺寸应用
           applySizeBtn.addEventListener('click', applyCanvasSize);
     
-          // 导出按钮 (保持不变)
+          // 导出按钮
           exportBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             exportOptions.classList.toggle('hidden');
@@ -1101,9 +1076,6 @@
               exportOptions.classList.add('hidden');
             });
           });
-          
-          // 初始化时选中“文本库”
-          switchTab('textTab');
         }
     
         // 启动
