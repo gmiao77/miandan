@@ -77,7 +77,7 @@
       <i class="fa fa-paint-brush text-xl mb-1"></i>
       <span class="text-xs">绘制</span>
     </button>
-    <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
+    <button class="flex flex-col items-center mb-6 text-blue-600 transition-colors">
       <i class="fa fa-font text-xl mb-1"></i>
       <span class="text-xs">文字</span>
     </button>
@@ -85,7 +85,7 @@
       <i class="fa fa-square-o text-xl mb-1"></i>
       <span class="text-xs">形状</span>
     </button>
-    <button class="flex flex-col items-center mb-6 text-blue-600 transition-colors">
+    <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
       <i class="fa fa-picture-o text-xl mb-1"></i>
       <span class="text-xs">标志</span>
     </button>
@@ -98,8 +98,11 @@
   <div class="w-72 border-r border-gray-200 flex flex-col bg-white">
     <div class="border-b border-gray-200">
       <div class="flex">
-        <button id="templateTab" class="flex-1 py-3 text-center text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+        <button id="templateTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
           模板库
+        </button>
+        <button id="textTab" class="flex-1 py-3 text-center text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+          文本库
         </button>
         <button id="assetTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
           标志库
@@ -107,7 +110,7 @@
       </div>
     </div>
 
-    <div id="templateLibrary" class="flex-1 overflow-y-auto scrollbar-hide p-3">
+    <div id="templateLibrary" class="hidden flex-1 overflow-y-auto scrollbar-hide p-3">
       <div class="mb-4">
         <input type="text" id="templateSearch" placeholder="搜索合规模板" 
                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
@@ -120,6 +123,12 @@
       <div id="templateList" class="space-y-2">
         <div class="text-center text-gray-500 py-10">加载模板中...</div>
       </div>
+    </div>
+    
+    <div id="textLibrary" class="flex-1 overflow-y-auto scrollbar-hide p-3">
+        <div id="textList" class="space-y-2">
+            <div class="text-center text-gray-500 py-10">加载文本模板中...</div>
+        </div>
     </div>
 
     <div id="assetLibrary" class="hidden flex-1 overflow-y-auto scrollbar-hide p-3">
@@ -230,12 +239,11 @@
 
 
     <script>
-        // NEW: 对应 templates/text.json 的模板 ID 和路径
+        // 对应 templates/text.json 的模板 ID 和路径
         const TEXT_TEMPLATE_ID = 'text-template'; 
         const TEXT_TEMPLATE_PATH = './templates/text.json';
 
-        // NEW: text.json 对应的元数据 (用于模板列表展示)
-        // 确保 path 对应到实际的文件路径
+        // text.json 对应的元数据 (用于文本列表展示)
         const TEXT_TEMPLATE_META = {
             id: TEXT_TEMPLATE_ID,
             name: '内置文本框',
@@ -247,11 +255,12 @@
 
         const state = {
           currentTemplate: null,
-          allTemplates: [],
+          allTemplates: [],        // 普通模板（寄件人、制造商等）
+          allTextTemplates: [],    // 文本模板
           allAssets: [],
           filteredAssets: [],
           currentCategory: 'all',
-          repoName: 'miandan' // 你的仓库名称
+          repoName: 'miandan' 
         };
     
         const assetCategories = [
@@ -259,7 +268,7 @@
           '纽扣电池', '西班牙回收', '窒息警告', '其他'
         ];
     
-        // DOM元素 (保持不变)
+        // DOM元素
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvasContainer');
         const canvasWidthInput = document.getElementById('canvasWidth');
@@ -267,19 +276,29 @@
         const applySizeBtn = document.getElementById('applySizeBtn');
         const exportBtn = document.getElementById('exportBtn');
         const exportOptions = document.getElementById('exportOptions');
-        const templateListEl = document.getElementById('templateList');
-        const templateSearchInput = document.getElementById('templateSearch');
-        const assetListEl = document.getElementById('assetList');
-        const assetSearchInput = document.getElementById('assetSearch');
+        
+        // Tab Buttons
         const templateTab = document.getElementById('templateTab');
+        const textTab = document.getElementById('textTab');
         const assetTab = document.getElementById('assetTab');
+        
+        // Library Panels
         const templateLibrary = document.getElementById('templateLibrary');
+        const textLibrary = document.getElementById('textLibrary');
         const assetLibrary = document.getElementById('assetLibrary');
+        
+        // List Containers
+        const templateListEl = document.getElementById('templateList');
+        const textListEl = document.getElementById('textList');
+        const assetListEl = document.getElementById('assetList');
+        
+        // Search/Controls
+        const templateSearchInput = document.getElementById('templateSearch');
+        const assetSearchInput = document.getElementById('assetSearch');
         const propertyPanel = document.getElementById('propertyPanel');
         const fontSizeSelect = document.getElementById('fontSizeSelect');
         let selectedTextElement = null; 
     
-        // 像素到毫米的转换因子 (保持不变)
         const MM_TO_PX = 3.779528;
         const PX_TO_MM = 0.264583;
     
@@ -294,7 +313,7 @@
           initInteractJs(); 
         }
 
-        // 填充字号选项 (保持不变)
+        // 填充字号选项
         function populateFontSizeOptions() {
             for (let i = 8; i <= 36; i += 2) {
                 const option = document.createElement('option');
@@ -304,27 +323,73 @@
             }
         }
     
-        // 加载模板元数据 (更新：将 text.json 元数据放在首位)
+        // 加载模板元数据 (更新：分离文本模板)
         async function loadTemplateMetadata() {
           try {
-            // 尝试加载远程模板元数据
             const response = await fetch(`/${state.repoName}/templates/metadata.json`);
             const data = await response.json();
             let templates = data.templates;
 
-            // 1. 添加内置文本模板到列表的开头
-            templates.unshift(TEXT_TEMPLATE_META);
+            // 1. 将内置文本模板添加到文本模板列表
+            state.allTextTemplates = [TEXT_TEMPLATE_META];
+            
+            // 2. 过滤普通模板列表，确保 text-template 不在其中
+            state.allTemplates = templates.filter(t => t.id !== TEXT_TEMPLATE_ID); 
 
-            state.allTemplates = templates;
-            renderTemplateList(templates);
-          } catch (error) {
-            // 如果远程加载失败，至少显示内置文本模板
-            state.allTemplates = [TEXT_TEMPLATE_META];
             renderTemplateList(state.allTemplates);
+            renderTextTemplateList(state.allTextTemplates);
+          } catch (error) {
+            // 如果远程加载失败，只显示内置文本模板
+            state.allTextTemplates = [TEXT_TEMPLATE_META];
+            state.allTemplates = [];
+            renderTemplateList(state.allTemplates);
+            renderTextTemplateList(state.allTextTemplates);
             console.error('模板元数据加载失败，仅显示内置文本模板：', error);
           }
         }
+        
+        // 渲染文本模板列表 (NEW FUNCTION)
+        function renderTextTemplateList(templates) {
+            if (templates.length === 0) {
+                textListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无文本模板数据</div>';
+                return;
+            }
+
+            textListEl.innerHTML = templates.map(template => {
+                // 文本模板卡片样式
+                return `
+                    <div class="template-card border-blue-300 bg-blue-50" data-id="${template.id}">
+                        <div class="aspect-[4/3] bg-blue-100 flex items-center justify-center rounded overflow-hidden mb-2">
+                            <i class="fa fa-font text-blue-600 text-3xl"></i>
+                        </div>
+                        <h3 class="text-sm font-medium text-gray-800">${template.name}</h3>
+                        <p class="text-xs text-gray-500">${template.description}</p>
+                    </div>
+                `;
+            }).join('');
+        }
     
+        // 渲染普通模板列表 (更新：移除对 text-template 的特殊判断，因为已经被分离)
+        function renderTemplateList(templates) {
+          if (templates.length === 0) {
+            templateListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无合规模板数据</div>';
+            return;
+          }
+    
+          templateListEl.innerHTML = templates.map(template => {
+            return `
+                <div class="template-card" data-id="${template.id}">
+                    <div class="aspect-[4/3] bg-gray-100 rounded overflow-hidden mb-2">
+                        <img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="text-sm font-medium text-gray-800">${template.name}</h3>
+                    <p class="text-xs text-gray-500">${template.description}</p>
+                    <p class="text-xs text-gray-400 mt-1">${template.size.width}×${template.size.height}${template.size.unit}</p>
+                </div>
+            `;
+          }).join('');
+        }
+        
         // 加载标志资源 (保持不变)
         async function loadAllAssets() {
           try {
@@ -357,6 +422,8 @@
           }
         }
     
+        // ... (其他辅助函数如 checkImageExists, renderAssetList, addAssetToCanvas, renderTemplateElements, createRectElement, createTextElement, createImageElement, initInteractJs, setupInteractForElement, showPropertyPanel, updateTextProperties 保持不变)
+
         // 检查图片是否存在 (保持不变)
         function checkImageExists(src) {
           return new Promise(resolve => {
@@ -366,32 +433,6 @@
             img.onerror = () => resolve(false);
             img.src = src;
           });
-        }
-    
-        // 渲染模板列表 (保持不变)
-        function renderTemplateList(templates) {
-          if (templates.length === 0) {
-            templateListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无合规模板数据</div>';
-            return;
-          }
-    
-          templateListEl.innerHTML = templates.map(template => {
-            const isTextBox = template.id === TEXT_TEMPLATE_ID;
-            
-            return `
-                <div class="template-card ${isTextBox ? 'border-blue-300 bg-blue-50' : ''}" data-id="${template.id}">
-                    <div class="aspect-[4/3] ${isTextBox ? 'bg-blue-100 flex items-center justify-center' : 'bg-gray-100'} rounded overflow-hidden mb-2">
-                        ${isTextBox 
-                            ? `<i class="fa fa-font text-blue-600 text-3xl"></i>` 
-                            : `<img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-full h-full object-cover">`
-                        }
-                    </div>
-                    <h3 class="text-sm font-medium text-gray-800">${template.name}</h3>
-                    <p class="text-xs text-gray-500">${template.description}</p>
-                    <p class="text-xs text-gray-400 mt-1">${template.size.width}×${template.size.height}${template.size.unit}</p>
-                </div>
-            `;
-          }).join('');
         }
     
         // 渲染标志列表 (保持不变)
@@ -733,16 +774,20 @@
             }
         }
     
-        // 加载模板到画布 (更新：通过 fetch 加载 JSON，并为 text.json 计算居中)
+        // 加载模板到画布 (保持不变)
         async function loadTemplateToCanvas(templateId) {
-            const templateMeta = state.allTemplates.find(t => t.id === templateId);
+            // 在普通模板和文本模板中查找元数据
+            let templateMeta = state.allTemplates.find(t => t.id === templateId);
+            if (!templateMeta) {
+                templateMeta = state.allTextTemplates.find(t => t.id === templateId);
+            }
+
             if (!templateMeta) return;
 
             let templateData;
 
             // 1. Fetch template data from the path
             try {
-                // 确保 path 正确解析，这里假设相对路径 ./templates/xxx.json
                 const fetchPath = templateMeta.path.replace('./', `/${state.repoName}/`);
                 const response = await fetch(fetchPath);
                 if (!response.ok) {
@@ -766,11 +811,9 @@
 
             // 3. 应用居中逻辑（仅针对内置文本框模板）
             if (templateId === TEXT_TEMPLATE_ID && elementsToRender.length > 0) {
-                // 预估文本框默认宽度和高度，以便居中
                 const defaultTextWidthMm = 100;
                 const defaultTextHeightMm = 20;
 
-                // 计算居中位置
                 const centerX = canvasWidthMm / 2 - defaultTextWidthMm / 2;
                 const centerY = canvasHeightMm / 2 - defaultTextHeightMm / 2;
 
@@ -786,7 +829,7 @@
             // 4. 清空画布并渲染元素
             renderTemplateElements(elementsToRender); 
 
-            // 5. 选中当前模板卡片
+            // 5. 选中当前模板卡片 (在两个列表中查找)
             document.querySelectorAll('.template-card').forEach(card => card.classList.remove('active'));
             document.querySelector(`.template-card[data-id="${templateId}"]`).classList.add('active');
         }
@@ -873,7 +916,7 @@
           renderAssetList(filtered);
         }
     
-        // 事件监听 (保持不变)
+        // 事件监听 (更新：新增文本库 Tab 切换)
         function initEventListeners() {
           document.addEventListener('keydown', (e) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -898,20 +941,21 @@
             }
           });
     
-          // 标签页切换
-          templateTab.addEventListener('click', () => {
-            templateLibrary.classList.remove('hidden');
-            assetLibrary.classList.add('hidden');
-            templateTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-            assetTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-          });
+          // 标签页切换逻辑 (NEW)
+          const switchTab = (activeTab, activeLibrary) => {
+            const tabs = [templateTab, textTab, assetTab];
+            const libraries = [templateLibrary, textLibrary, assetLibrary];
+            
+            tabs.forEach(tab => tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600'));
+            libraries.forEach(lib => lib.classList.add('hidden'));
+
+            activeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            activeLibrary.classList.remove('hidden');
+          };
           
-          assetTab.addEventListener('click', () => {
-            assetLibrary.classList.remove('hidden');
-            templateLibrary.classList.add('hidden');
-            assetTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-            templateTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-          });
+          templateTab.addEventListener('click', () => switchTab(templateTab, templateLibrary));
+          textTab.addEventListener('click', () => switchTab(textTab, textLibrary));
+          assetTab.addEventListener('click', () => switchTab(assetTab, assetLibrary));
     
           // 模板搜索
           templateSearchInput.addEventListener('input', (e) => {
@@ -923,8 +967,17 @@
             renderTemplateList(filtered);
           });
     
-          // 模板点击
+          // 模板库点击 (普通模板)
           templateListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.template-card');
+            if (card) {
+              const templateId = card.getAttribute('data-id');
+              loadTemplateToCanvas(templateId);
+            }
+          });
+
+          // 文本库点击 (NEW)
+          textListEl.addEventListener('click', (e) => {
             const card = e.target.closest('.template-card');
             if (card) {
               const templateId = card.getAttribute('data-id');
