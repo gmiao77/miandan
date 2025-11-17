@@ -594,7 +594,7 @@
               wrapper.dataset.type = 'text-wrapper'; // 标记为文本容器
               
               // 修复上一个问题的点：为 element.size 提供默认值
-              const size = element.size || {}; 
+              const size = element.size || {};
               
               // 文本内容层
               const content = document.createElement('div');
@@ -627,19 +627,18 @@
               wrapper.appendChild(content);
   
               content.addEventListener('mousedown', (e) => {
-                  // e.stopPropagation(); // <-- 已移除!
-                  // 确保单次点击仍然将焦点放在可编辑内容上，但允许事件冒泡
-              });
+                              // 允许事件冒泡到 wrapper，让 interact.js 启动拖拽
+                          });
+                          
+                          // 双击进入编辑模式
+                          content.addEventListener('dblclick', (e) => {
+                              if (content.contentEditable === 'true') {
+                                  content.focus();
+                              }
+                          });
               
-              // 双击进入编辑模式 (如果 contenteditable='true')
-              content.addEventListener('dblclick', (e) => {
-                  if (content.contentEditable === 'true') {
-                      content.focus();
-                  }
-              });
-  
-              return wrapper;
-          }
+                          return wrapper;
+                      }
   
           // 创建元素工具函数
           function createRectElement(id, element) {
@@ -705,82 +704,70 @@
           }
     
         // 初始化interact.js交互（核心功能）
-        function initInteractJs() {
-          // 使画布元素可拖拽
-          interact('.canvas-element')
-            .draggable({
-              inertia: true, 
-              modifiers: [
-                interact.modifiers.restrictRect({
-                  restriction: 'parent', 
-                  endOnly: true
-                })
-              ],
-              autoScroll: true,
-              ignoreFrom: '.resize-handle, .editable-content', 
-              listeners: {
-                move(event) {
-                  const target = event.target;
-                  // 获取当前位置 (px)
-                  let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                  let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-    
-                  // 转换为毫米
-                  const mmX = x * PX_TO_MM;
-                  const mmY = y * PX_TO_MM;
-    
-                  // 更新位置
-                  target.style.left = `${mmX}mm`;
-                  target.style.top = `${mmY}mm`;
-    
-                  // 存储像素位置数据
-                  target.setAttribute('data-x', x);
-                  target.setAttribute('data-y', y);
-                }
-              }
-            })
-            .on('down', function(event) {
-              // 确保点击手柄时，目标是父元素
-              const target = event.target.closest('.canvas-element'); 
-              if (!target) return;
-              
-              // 检查点击是否发生在可编辑区域
-              if (event.target.closest('.editable-content')) {
-                  // 如果点击在可编辑内容上，不取消其他元素的选中状态，但确保当前元素被选中
-                  if (!target.classList.contains('selected')) {
-                      document.querySelectorAll('.canvas-element').forEach(el => {
-                          el.classList.remove('selected');
-                      });
-                      target.classList.add('selected');
+            function initInteractJs() {
+              // 使画布元素可拖拽
+              interact('.canvas-element')
+                .draggable({
+                  inertia: true, 
+                  modifiers: [
+                    interact.modifiers.restrictRect({
+                      restriction: 'parent', 
+                      endOnly: true
+                    })
+                  ],
+                  autoScroll: true,
+                  // *** 关键修复点：移除 .editable-content，允许在文本内容上拖拽容器 ***
+                  ignoreFrom: '.resize-handle', 
+                  listeners: {
+                    move(event) {
+                      const target = event.target;
+                      // 获取当前位置 (px)
+                      let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                      let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+        
+                      // 转换为毫米
+                      const mmX = x * PX_TO_MM;
+                      const mmY = y * PX_TO_MM;
+        
+                      // 更新位置
+                      target.style.left = `${mmX}mm`;
+                      target.style.top = `${mmY}mm`;
+        
+                      // 存储像素位置数据
+                      target.setAttribute('data-x', x);
+                      target.setAttribute('data-y', y);
+                    }
                   }
-                  // 此时不应重置 data-x/data-y，因为如果进入编辑模式，它不应该被拖拽
-                  return; 
-              }
-    
-              // 选中元素时高亮并显示缩放手柄
-              document.querySelectorAll('.canvas-element').forEach(el => {
-                el.classList.remove('selected');
-                // 清除旧的像素坐标，避免多次点击导致的坐标累加问题
-                el.removeAttribute('data-x');
-                el.removeAttribute('data-y');
-              });
-              
-              target.classList.add('selected');
-              
-              // 初始化 data-x 和 data-y 为当前元素的像素位置
-              target.setAttribute('data-x', target.offsetLeft);
-              target.setAttribute('data-y', target.offsetTop);
-            });
-    
-          // 点击画布空白处取消选中
-          interact('#canvas').on('down', function(event) {
-            if (event.target === canvas) {
-              document.querySelectorAll('.canvas-element').forEach(el => {
-                el.classList.remove('selected');
+                })
+                .on('down', function(event) {
+                  // 确保点击手柄时，目标是父元素
+                  const target = event.target.closest('.canvas-element'); 
+                  if (!target) return;
+                  
+                  // 选中元素时高亮并显示缩放手柄
+                  document.querySelectorAll('.canvas-element').forEach(el => {
+                    el.classList.remove('selected');
+                    // 清除旧的像素坐标
+                    el.removeAttribute('data-x');
+                    el.removeAttribute('data-y');
+                  });
+                  
+                  target.classList.add('selected');
+                  
+                  // 初始化 data-x 和 data-y 为当前元素的像素位置
+                  target.setAttribute('data-x', target.offsetLeft);
+                  target.setAttribute('data-y', target.offsetTop);
+                });
+        
+              // 点击画布空白处取消选中
+              interact('#canvas').on('down', function(event) {
+                if (event.target === canvas) {
+                  document.querySelectorAll('.canvas-element').forEach(el => {
+                    el.classList.remove('selected');
+                  });
+                }
               });
             }
-          });
-        }
     
         // 核心修改 3: 为单个元素设置缩放功能 - 启用文本容器的缩放
         function setupInteractForElement(element, enableResize = true) {
@@ -1079,4 +1066,5 @@
 
 </body>
 </html>
+
 
