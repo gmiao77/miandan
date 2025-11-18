@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>跨境电商物流合规面单编辑器</title>
+  <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .template-card {
+        @apply border border-gray-200 rounded-md p-2 mb-3 cursor-pointer hover:bg-gray-50 transition-all;
+      }
+      .template-card.active {
+        @apply border-blue-500 bg-blue-50;
+      }
+      .asset-card {
+        @apply border border-gray-200 rounded-md p-2 mb-2 cursor-pointer hover:bg-gray-50 transition-all;
+      }
+      .canvas-container {
+        @apply border border-gray-300 rounded-md bg-white relative overflow-hidden;
+        /* 启用缩放动画 */
+        transform-origin: top left;
+        will-change: transform; 
+      }
+      .canvas-element {
+        @apply absolute select-none;
+      }
+      .editable {
+        @apply cursor-text; 
+      }
+      /* 缩放手柄样式 */
+      .resize-handle {
+        @apply absolute w-4 h-4 bg-blue-500 rounded-full border border-white shadow-md z-10 hidden;
+      }
+      /* 选中时显示手柄 */
+      .selected .resize-handle {
+        @apply block;
+      }
+      .resize-handle-tl { top: -6px; left: -6px; cursor: nwse-resize; }
+      .resize-handle-tr { top: -6px; right: -6px; cursor: nesw-resize; }
+      .resize-handle-bl { bottom: -6px; left: -6px; cursor: nesw-resize; }
+      .resize-handle-br { bottom: -6px; right: -6px; cursor: nwse-resize; }
+      
+      /* 选中元素轮廓 */
+      .canvas-element.selected {
+        @apply outline outline-2 outline-blue-500;
+      }
+      
+      /* 确保图片元素在容器内显示 */
+      .canvas-element img {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      
+      /* 文本元素样式调整，以支持缩放容器 */
+      .canvas-element[data-type="text-wrapper"] .editable-content {
+          /* 确保 contenteditable 区域占据整个容器 */
+          display: block;
+          width: 100%;
+          height: 100%;
+          white-space: normal; /* 允许换行 */
+          overflow: hidden; /* 隐藏超出部分 */
+          /* 确保内容不可被拖拽选中（但容器可拖拽） */
+          user-select: none;
+      }
+      /* 当编辑文本时，允许用户选择文本 */
+      .canvas-element[data-type="text-wrapper"] .editable-content:focus {
+        user-select: text;
+      }
+    }
+  </style>
+</head>
+<body class="flex h-screen bg-gray-100 overflow-hidden">
+
+  <div class="w-16 flex flex-col items-center py-4 border-r border-gray-200 bg-white">
+    <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
+      <i class="fa fa-paint-brush text-xl mb-1"></i>
+      <span class="text-xs">绘制</span>
+    </button>
+    <button id="lnbText" class="flex flex-col items-center mb-6 text-blue-600 transition-colors">
+      <i class="fa fa-text-width text-xl mb-1"></i>
+      <span class="text-xs">文本</span>
+    </button>
+    <button class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
+      <i class="fa fa-square-o text-xl mb-1"></i>
+      <span class="text-xs">形状</span>
+    </button>
+    <button id="lnbAsset" class="flex flex-col items-center mb-6 text-gray-700 hover:text-blue-600 transition-colors">
+      <i class="fa fa-picture-o text-xl mb-1"></i>
+      <span class="text-xs">标志</span>
+    </button>
+    <button id="lnbTemplate" class="flex flex-col items-center text-gray-700 hover:text-blue-600 transition-colors">
+      <i class="fa fa-th-large text-xl mb-1"></i>
+      <span class="text-xs">模板</span>
+    </button>
+  </div>
+
+  <div class="w-72 border-r border-gray-200 flex flex-col bg-white">
+    <div class="border-b border-gray-200">
+      <div class="flex">
+        <button id="textTab" class="flex-1 py-3 text-center text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+          文本库
+        </button>
+        <button id="assetTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
+          标志库
+        </button>
+        <button id="templateTab" class="flex-1 py-3 text-center text-sm font-medium text-gray-500 hover:text-gray-700">
+          模板库
+        </button>
+      </div>
+    </div>
+
+    <div id="textLibrary" class="flex-1 overflow-y-auto scrollbar-hide p-3">
+        <h3 class="text-md font-semibold text-gray-700 mb-3">文本工具</h3>
+        <button id="addBlankTextBtn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
+            <i class="fa fa-plus-circle mr-1"></i> 插入空白文本框
+        </button>
+        
+        <div class="mt-4 border-t border-gray-200 pt-4">
+            <h4 class="text-sm font-medium text-gray-600 mb-2">常用文本</h4>
+            <div id="textTemplateList" class="space-y-2">
+                <div class="text-center text-gray-500 py-4 text-xs">暂无常用文本模板</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="templateLibrary" class="hidden flex-1 overflow-y-auto scrollbar-hide p-3">
+      <div class="mb-4">
+        <input type="text" id="templateSearch" placeholder="搜索合规模板" 
+               class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+        <div class="flex mt-2 space-x-1">
+          <button class="px-3 py-1 bg-blue-500 text-white rounded-md text-sm">全部</button>
+          <button class="px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100">寄件人</button>
+          <button class="px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100">制造商</button>
+        </div>
+      </div>
+      <div id="templateList" class="space-y-2">
+        <div class="text-center text-gray-500 py-10">加载模板中...</div>
+      </div>
+    </div>
+
+    <div id="assetLibrary" class="hidden flex-1 overflow-y-auto scrollbar-hide p-3">
+      <div class="mb-4">
+        <input type="text" id="assetSearch" placeholder="搜索标志（如：窒息警告）" 
+               class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+        
+        <div class="mt-3 overflow-x-auto scrollbar-hide">
+          <div class="flex space-x-2 pb-2 min-w-max">
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="all">
+              全部
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="代理">
+              代理
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="法国标">
+              法国标
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="化妆品">
+              化妆品
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="能效">
+              能效
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="纽扣电池">
+              纽扣电池
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="西班牙回收">
+              西班牙回收
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="窒息警告">
+              窒息警告
+            </button>
+            <button class="asset-category-btn px-3 py-1 text-gray-600 rounded-md text-sm hover:bg-gray-100" data-category="其他">
+              其他
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="assetList" class="space-y-3">
+        <div class="text-center text-gray-500 py-10">加载标志中...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+      
+      <div id="textPropertyEditor" class="flex items-center space-x-4 hidden">
+        <span class="text-sm font-medium text-gray-700">字体大小:</span>
+        <select id="fontSizeSelect" class="px-2 py-1 border border-gray-300 rounded text-sm w-20">
+          <option value="8">8 px</option>
+          <option value="10">10 px</option>
+          <option value="12">12 px</option>
+          <option value="14">14 px</option>
+          <option value="16">16 px</option>
+          <option value="18">18 px</option>
+          <option value="24">24 px</option>
+          <option value="32">32 px</option>
+          <option value="48">48 px</option>
+        </select>
+      </div>
+      
+      <div id="defaultControls" class="flex items-center justify-between flex-1">
+        <div class="text-sm text-gray-500 flex items-center">
+          <i class="fa fa-info-circle mr-1"></i>
+          <span>合规面单请确保所有信息完整，标志位置正确</span>
+        </div>
+        <div class="flex items-center">
+          <span class="text-sm mr-2">画布尺寸:</span>
+          <input type="number" id="canvasWidth" value="210" min="50" max="500" 
+                 class="w-16 px-2 py-1 border border-gray-300 rounded text-sm">
+          <span class="mx-1">×</span>
+          <input type="number" id="canvasHeight" value="148" min="50" max="500" 
+                 class="w-16 px-2 py-1 border border-gray-300 rounded text-sm">
+          <span class="ml-1 mr-3">mm</span>
+          <button id="applySizeBtn" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">应用</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="flex-1 p-6 overflow-auto bg-gray-50">
+      <div class="max-w-4xl mx-auto">
+        <div id="canvasContainer" class="canvas-container mx-auto transition-all duration-300" 
+             style="width: 210mm; height: 148mm;">
+          <div id="canvas" class="w-full h-full relative">
+            <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+              请从左侧选择模板或标志添加到画布
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-6 flex justify-end">
+          <div class="relative inline-block">
+            <button id="exportBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+              导出合规面单 <i class="fa fa-download ml-1"></i>
+            </button>
+            <div id="exportOptions" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+              <button data-format="pdf" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="fa fa-file-pdf-o mr-2 text-red-500"></i>PDF格式（推荐）
+              </button>
+              <button data-format="png" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="fa fa-file-image-o mr-2 text-green-500"></i>PNG格式
+              </button>
+              <button data-format="jpg" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <i class="fa fa-file-image-o mr-2 text-yellow-500"></i>JPG格式
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+    <script>
+        const state = {
+          currentTemplate: null,
+          allTemplates: [],
+          allAssets: [],
+          filteredAssets: [],
+          currentCategory: 'all',
+          currentPanel: 'text', // 默认显示文本库
+          repoName: 'miandan',
+          zoomScale: 1.0 // 新增：画布缩放比例，默认 1.0 (100%)
+        };
+    
+        const assetCategories = [
+          '代理', '法国标', '化妆品', '能效', 
+          '纽扣电池', '西班牙回收', '窒息警告', '其他'
+        ];
+    
+        // DOM元素
+        const canvas = document.getElementById('canvas');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const canvasWidthInput = document.getElementById('canvasWidth');
+        const canvasHeightInput = document.getElementById('canvasHeight');
+        const applySizeBtn = document.getElementById('applySizeBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const exportOptions = document.getElementById('exportOptions');
+        const templateListEl = document.getElementById('templateList');
+        const templateSearchInput = document.getElementById('templateSearch');
+        const assetListEl = document.getElementById('assetList');
+        const assetSearchInput = document.getElementById('assetSearch');
+        
+        // LNB 和 Tab 元素
+        const lnbText = document.getElementById('lnbText');
+        const lnbAsset = document.getElementById('lnbAsset');
+        const lnbTemplate = document.getElementById('lnbTemplate');
+        const textTab = document.getElementById('textTab');
+        const assetTab = document.getElementById('assetTab');
+        const templateTab = document.getElementById('templateTab');
+        const textLibrary = document.getElementById('textLibrary');
+        const assetLibrary = document.getElementById('assetLibrary');
+        const templateLibrary = document.getElementById('templateLibrary');
+        const addBlankTextBtn = document.getElementById('addBlankTextBtn'); 
+
+        // 属性编辑栏元素
+        const textPropertyEditor = document.getElementById('textPropertyEditor'); 
+        const fontSizeSelect = document.getElementById('fontSizeSelect');
+        const defaultControls = document.getElementById('defaultControls');
+    
+        // 转换因子
+        const MM_TO_PX = 3.779528;
+        const PX_TO_MM = 0.264583;
+    
+        // 初始化
+        async function init() {
+          await Promise.all([
+            loadTemplateMetadata(),
+            loadAllAssets()
+          ]);
+          initEventListeners();
+          initInteractJs(); // 初始化interact.js
+          updatePanelVisibility(state.currentPanel); // 初始化面板显示
+        }
+    
+        // 加载模板元数据 (不变)
+        async function loadTemplateMetadata() {
+          try {
+            const response = await fetch(`/${state.repoName}/templates/metadata.json`);
+            const data = await response.json();
+            state.allTemplates = data.templates;
+            renderTemplateList(data.templates);
+          } catch (error) {
+            templateListEl.innerHTML = '<div class="text-center text-red-500 py-10">模板加载失败</div>';
+            console.error('模板元数据加载失败：', error);
+          }
+        }
+    
+        // 加载标志资源 (不变)
+        async function loadAllAssets() {
+          try {
+            const allAssets = [];
+            for (const category of assetCategories) {
+              for (let i = 1; i <= 10; i++) {
+                const src = `/${state.repoName}/assets/images/${category}/${category}${i}.jpg`;
+                const asset = {
+                  id: `${category}-${i}`,
+                  category,
+                  name: `${category}${i}`,
+                  src: src
+                };
+                const exists = await checkImageExists(src);
+                if (exists) {
+                  allAssets.push(asset);
+                } else {
+                  break;
+                }
+              }
+            }
+            state.allAssets = allAssets;
+            state.filteredAssets = allAssets;
+            renderAssetList(allAssets);
+          } catch (error) {
+            assetListEl.innerHTML = '<div class="text-center text-red-500 py-10">标志加载失败</div>';
+            console.error('标志资源加载失败：', error);
+          }
+        }
+    
+        // 检查图片是否存在 (不变)
+        function checkImageExists(src) {
+          return new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = src;
+          });
+        }
+    
+        // 渲染模板列表 (不变)
+        function renderTemplateList(templates) {
+          if (templates.length === 0) {
+            templateListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无合规模板数据</div>';
+            return;
+          }
+    
+          templateListEl.innerHTML = templates.map(template => `
+            <div class="template-card" data-id="${template.id}">
+              <div class="aspect-[4/3] bg-gray-100 rounded overflow-hidden mb-2">
+                <img src="${template.thumbnail.replace('./', `/${state.repoName}/`)}" alt="${template.name}" class="w-full h-full object-cover">
+              </div>
+              <h3 class="text-sm font-medium text-gray-800">${template.name}</h3>
+              <p class="text-xs text-gray-500">${template.description}</p>
+              <p class="text-xs text-gray-400 mt-1">${template.size.width}×${template.size.height}${template.size.unit}</p>
+            </div>
+          `).join('');
+        }
+    
+        // 渲染标志列表 (不变)
+        function renderAssetList(assets) {
+          if (assets.length === 0) {
+            assetListEl.innerHTML = '<div class="text-center text-gray-500 py-10">无标志数据</div>';
+            return;
+          }
+    
+          const assetsByCategory = {};
+          assets.forEach(asset => {
+            if (!assetsByCategory[asset.category]) {
+              assetsByCategory[asset.category] = [];
+            }
+            assetsByCategory[asset.category].push(asset);
+          });
+    
+          let html = '';
+          for (const category in assetsByCategory) {
+            html += `
+              <div class="mb-4">
+                <h3 class="text-sm font-medium text-gray-700 mb-2">${category}</h3>
+                <div class="grid grid-cols-2 gap-2">
+                  ${assetsByCategory[category].map(asset => `
+                    <div class="asset-card" data-id="${asset.id}" data-src="${asset.src}" data-category="${asset.category}">
+                      <div class="bg-gray-100 rounded overflow-hidden aspect-square">
+                        <img src="${asset.src}" alt="${asset.name}" class="w-full h-full object-contain p-1">
+                      </div>
+                      <p class="text-xs text-center mt-1 text-gray-600">${asset.name}</p>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }
+          assetListEl.innerHTML = html;
+        }
+    
+        // 加载模板到画布 (不变)
+        async function loadTemplateToCanvas(templateId) {
+          canvas.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-gray-400">加载中...</div>';
+          
+          try {
+            // 清理所有选中状态和属性编辑器
+            handleElementSelection(null); 
+            
+            const response = await fetch(`/${state.repoName}/templates/${templateId}.json`);
+            const template = await response.json();
+            
+            const templateMeta = state.allTemplates.find(t => t.id === templateId);
+            if (templateMeta) {
+              canvasWidthInput.value = templateMeta.size.width;
+              canvasHeightInput.value = templateMeta.size.height;
+              applyCanvasSize();
+            }
+            
+            renderTemplateElements(template.elements);
+            
+            document.querySelectorAll('.template-card').forEach(card => {
+              card.classList.toggle('active', card.getAttribute('data-id') === templateId);
+            });
+            state.currentTemplate = templateId;
+    
+          } catch (error) {
+            canvas.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-red-500">模板加载失败</div>';
+            console.error('模板加载失败：', error);
+          }
+        }
+    
+        // 添加标志到画布 (不变)
+        function addAssetToCanvas(src) {
+          if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
+            canvas.innerHTML = '';
+          }
+          
+          const elementId = `asset-${Date.now()}`;
+          const wrapper = document.createElement('div');
+          wrapper.id = elementId;
+          wrapper.className = 'canvas-element'; 
+          wrapper.dataset.type = 'image-wrapper'; 
+          
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = '合规标志';
+          img.onerror = () => {
+            img.src = 'https://via.placeholder.com/100?text=标志缺失';
+          };
+          
+          // 添加缩放手柄
+          const handles = ['tl', 'tr', 'bl', 'br'];
+          handles.forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-handle-${pos}`;
+            wrapper.appendChild(handle);
+          });
+          
+          wrapper.appendChild(img);
+    
+          // 默认位置和尺寸 (50mm x 50mm)
+          const defaultSizeMm = 50;
+          const canvasWidth = parseFloat(canvasContainer.style.width);
+          const canvasHeight = parseFloat(canvasContainer.style.height);
+          
+          wrapper.style.left = `${(canvasWidth - defaultSizeMm) / 2}mm`;
+          wrapper.style.top = `${(canvasHeight - defaultSizeMm) / 2}mm`;
+          wrapper.style.width = `${defaultSizeMm}mm`;
+          wrapper.style.height = `${defaultSizeMm}mm`;
+          
+          canvas.appendChild(wrapper);
+    
+          // 选中新元素并设置交互
+          handleElementSelection(wrapper);
+          setupInteractForElement(wrapper); 
+        }
+
+        // 新增函数: 添加空白文本框到画布
+        function addBlankTextElementToCanvas() {
+            if (canvas.children.length > 0 && canvas.children[0].classList.contains('justify-center')) {
+              canvas.innerHTML = '';
+            }
+            
+            const elementId = `text-blank-${Date.now()}`;
+            
+            // 默认元素配置
+            const element = {
+                content: '双击编辑文本',
+                editable: true,
+                position: { x: 50, y: 50 },
+                size: { width: 60, height: 15 }, // 默认尺寸 (mm)
+                style: {
+                    fontSize: 12,
+                    fontWeight: 'normal',
+                    color: '#333'
+                }
+            };
+
+            const domElement = createTextElement(elementId, element);
+
+            canvas.appendChild(domElement);
+
+            // 选中新元素并设置交互
+            handleElementSelection(domElement);
+            setupInteractForElement(domElement); 
+        }
+    
+        // 渲染模板元素 (不变)
+        function renderTemplateElements(elements) {
+          canvas.innerHTML = '';
+          
+          elements.forEach((element, index) => {
+            const elementId = `element-${index}-${Date.now()}`;
+            let domElement;
+            
+            switch (element.type) {
+              case 'rect':
+                domElement = createRectElement(elementId, element);
+                break;
+              case 'text':
+                domElement = createTextElement(elementId, element);
+                break;
+              case 'image':
+                domElement = createImageElement(elementId, element);
+                break;
+            }
+            
+            if (domElement) {
+              canvas.appendChild(domElement);
+              setupInteractForElement(domElement); 
+            }
+          });
+        }
+    
+        // 创建矩形元素 (已包含尺寸鲁棒性修复)
+        function createRectElement(id, element) {
+          const div = document.createElement('div');
+          div.id = id;
+          div.className = 'canvas-element';
+          div.dataset.type = 'rect';
+          
+          const size = element.size || {}; // 尺寸鲁棒性修复
+
+          div.style.left = `${element.position.x}mm`;
+          div.style.top = `${element.position.y}mm`;
+          div.style.width = `${size.width || 50}mm`;
+          div.style.height = `${size.height || 50}mm`;
+          div.style.backgroundColor = element.style.fill || 'transparent';
+          div.style.border = `${element.style.strokeWidth || 1}px solid ${element.style.stroke || '#ddd'}`;
+
+          // 为 rect 添加缩放手柄
+          const handles = ['tl', 'tr', 'bl', 'br'];
+          handles.forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-handle-${pos}`;
+            div.appendChild(handle);
+          });
+          
+          return div;
+        }
+    
+        // 创建文本元素 (已包含尺寸鲁棒性修复和拖拽/编辑逻辑修复)
+        function createTextElement(id, element) {
+            const wrapper = document.createElement('div');
+            wrapper.id = id;
+            wrapper.className = 'canvas-element';
+            wrapper.dataset.type = 'text-wrapper'; 
+            
+            const size = element.size || {}; // 尺寸鲁棒性修复
+            
+            const content = document.createElement('div');
+            content.className = 'editable-content editable';
+            content.contentEditable = element.editable ? 'true' : 'false';
+            content.innerText = element.content;
+
+            // 样式应用于内容层或容器
+            content.style.fontSize = `${element.style.fontSize || 12}px`;
+            content.style.fontWeight = element.style.fontWeight || 'normal';
+            content.style.color = element.style.color || '#333';
+            if (element.style.textAlign) content.style.textAlign = element.style.textAlign;
+            
+            // 容器位置和大小
+            wrapper.style.left = `${element.position.x}mm`;
+            wrapper.style.top = `${element.position.y}mm`;
+            wrapper.style.width = `${size.width || 80}mm`; 
+            wrapper.style.height = `${size.height || 20}mm`; 
+            
+            wrapper.setAttribute('title', element.editable ? '点击拖拽，双击编辑' : '');
+
+            // 添加缩放手柄
+            const handles = ['tl', 'tr', 'bl', 'br'];
+            handles.forEach(pos => {
+                const handle = document.createElement('div');
+                handle.className = `resize-handle resize-handle-${pos}`;
+                wrapper.appendChild(handle);
+            });
+            
+            wrapper.appendChild(content);
+
+            // 允许事件冒泡以支持拖拽
+            content.addEventListener('mousedown', (e) => {
+                // 不使用 e.stopPropagation()
+            });
+            
+            // 双击进入编辑模式
+            content.addEventListener('dblclick', (e) => {
+                if (content.contentEditable === 'true') {
+                    content.focus();
+                }
+            });
+
+            return wrapper;
+        }
+    
+        // 创建图片元素 (已包含尺寸鲁棒性修复)
+        function createImageElement(id, element) {
+          const wrapper = document.createElement('div');
+          wrapper.id = id;
+          wrapper.className = 'canvas-element';
+          wrapper.dataset.type = 'image-wrapper'; 
+          
+          const size = element.size || {}; // 尺寸鲁棒性修复
+
+          const img = document.createElement('img');
+          img.src = element.src.replace('./', `/${state.repoName}/`);
+          img.alt = '合规标志';
+          img.onerror = () => {
+            img.src = 'https://via.placeholder.com/60?text=标志缺失';
+          };
+          
+          // 容器位置和大小
+          wrapper.style.left = `${element.position.x}mm`;
+          wrapper.style.top = `${element.position.y}mm`;
+          wrapper.style.width = `${size.width || 50}mm`;
+          wrapper.style.height = `${size.height || 50}mm`;
+    
+          // 添加缩放手柄
+          const handles = ['tl', 'tr', 'bl', 'br'];
+          handles.forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-handle-${pos}`;
+            wrapper.appendChild(handle);
+          });
+          
+          wrapper.appendChild(img);
+          
+          return wrapper; 
+        }
+
+        // 选中元素时更新属性编辑器 (新增功能)
+        function handleElementSelection(target) {
+            // 确保所有元素取消选中
+            document.querySelectorAll('.canvas-element').forEach(el => {
+                el.classList.remove('selected');
+                el.removeAttribute('data-x');
+                el.removeAttribute('data-y');
+            });
+
+            if (!target) {
+                // 如果没有目标（点击空白处），隐藏属性栏
+                textPropertyEditor.classList.add('hidden');
+                defaultControls.classList.remove('hidden');
+                return;
+            }
+
+            target.classList.add('selected');
+            target.setAttribute('data-x', target.offsetLeft);
+            target.setAttribute('data-y', target.offsetTop);
+
+            // 检查元素类型并显示相应的属性栏
+            if (target.dataset.type === 'text-wrapper') {
+                const contentEl = target.querySelector('.editable-content');
+                
+                // 1. 显示文本属性栏，隐藏默认控制
+                defaultControls.classList.add('hidden');
+                textPropertyEditor.classList.remove('hidden');
+                
+                // 2. 获取当前字体大小并设置下拉框选中
+                const currentSize = parseFloat(contentEl.style.fontSize) || 12; // 默认值 12
+                fontSizeSelect.value = currentSize;
+
+            } else {
+                // 选中非文本元素时，隐藏属性栏
+                textPropertyEditor.classList.add('hidden');
+                defaultControls.classList.remove('hidden');
+            }
+        }
+    
+        // 初始化interact.js交互（核心功能）
+        function initInteractJs() {
+          // 使画布元素可拖拽
+          interact('.canvas-element')
+            .draggable({
+              inertia: true, 
+              modifiers: [
+                interact.modifiers.restrictRect({
+                  restriction: 'parent', 
+                  endOnly: true
+                })
+              ],
+              autoScroll: true,
+              // 关键修复：只忽略手柄，允许在文本内容上拖拽容器
+              ignoreFrom: '.resize-handle', 
+              listeners: {
+                move(event) {
+                  const target = event.target;
+                  let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                  let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+    
+                  const mmX = x * PX_TO_MM;
+                  const mmY = y * PX_TO_MM;
+    
+                  target.style.left = `${mmX}mm`;
+                  target.style.top = `${mmY}mm`;
+    
+                  target.setAttribute('data-x', x);
+                  target.setAttribute('data-y', y);
+                }
+              }
+            })
+            .on('down', function(event) {
+              const target = event.target.closest('.canvas-element'); 
+              // 关键修复：将选中逻辑移到 handleElementSelection
+              handleElementSelection(target);
+            });
+    
+          // 点击画布空白处取消选中
+          interact('#canvas').on('down', function(event) {
+            if (event.target === canvas) {
+              // 关键修复：将取消选中逻辑移到 handleElementSelection
+              handleElementSelection(null); 
+            }
+          });
+        }
+    
+        // 为单个元素设置缩放功能 (不变)
+        function setupInteractForElement(element, enableResize = true) {
+          if ((element.dataset.type === 'image-wrapper' || element.dataset.type === 'rect' || element.dataset.type === 'text-wrapper') && enableResize) { 
+            interact(element).resizable({
+              inertia: true,
+              modifiers: [
+                interact.modifiers.restrictSize({
+                  min: { width: 10, height: 10 }
+                }),
+                interact.modifiers.restrictRect({
+                  restriction: 'parent', 
+                  endOnly: true
+                })
+              ],
+              edges: { 
+                left: '.resize-handle-tl, .resize-handle-bl', 
+                right: '.resize-handle-tr, .resize-handle-br', 
+                bottom: '.resize-handle-bl, .resize-handle-br', 
+                top: '.resize-handle-tl, .resize-handle-tr' 
+              },
+              listeners: {
+                move(event) {
+                  const target = event.target; 
+                  
+                  let x = (parseFloat(target.getAttribute('data-x')) || 0);
+                  let y = (parseFloat(target.getAttribute('data-y')) || 0);
+                  
+                  x += event.deltaRect.left;
+                  y += event.deltaRect.top;
+    
+                  const mmWidth = event.rect.width * PX_TO_MM;
+                  const mmHeight = event.rect.height * PX_TO_MM;
+                  const mmX = x * PX_TO_MM;
+                  const mmY = y * PX_TO_MM;
+                  
+                  target.style.width = `${mmWidth}mm`;
+                  target.style.height = `${mmHeight}mm`;
+                  target.style.left = `${mmX}mm`;
+                  target.style.top = `${mmY}mm`;
+    
+                  target.setAttribute('data-x', x);
+                  target.setAttribute('data-y', y);
+                }
+              }
+            });
+          }
+        }
+    
+        // 画布尺寸调整 (不变)
+        function applyCanvasSize() {
+          const width = parseInt(canvasWidthInput.value) || 210;
+          const height = parseInt(canvasHeightInput.value) || 148;
+          canvasContainer.style.width = `${width}mm`;
+          canvasContainer.style.height = `${height}mm`;
+        }
+        
+        // 应用画布缩放比例 (新增功能)
+        function updateCanvasZoom() {
+            // 将缩放应用到 canvasContainer 上，实现整个画布的视觉缩放
+            canvasContainer.style.transform = `scale(${state.zoomScale})`;
+        }
+    
+        // 删除选中元素的功能函数 (不变)
+        function deleteSelectedElement() {
+          const selectedElement = document.querySelector('.canvas-element.selected');
+          
+          if (selectedElement) {
+            selectedElement.remove();
+            handleElementSelection(null); // 删除后取消选中并隐藏属性栏
+            
+            if (canvas.children.length === 0) {
+                canvas.innerHTML = `
+                  <div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                    请从左侧选择模板或标志添加到画布
+                  </div>
+                `;
+            }
+          }
+        }
+    
+        // 导出功能 (不变)
+        function exportCanvas(format) {
+          if (canvas.children.length === 0 || canvas.querySelector('.text-gray-400')) {
+            alert('请先选择并填写合规面单信息');
+            return;
+          }
+          
+          document.querySelectorAll('.canvas-element').forEach(el => {
+            el.classList.remove('selected');
+          });
+    
+          html2canvas(canvas, {
+            scale: 2, 
+            useCORS: true 
+          }).then(canvasImage => {
+            const imgData = canvasImage.toDataURL('image/png');
+            
+            if (format === 'pdf') {
+              const { jsPDF } = window.jspdf;
+              const pdf = new jsPDF({
+                orientation: canvasWidthInput.value > canvasHeightInput.value ? 'l' : 'p',
+                unit: 'mm',
+                format: [parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value)]
+              });
+              pdf.addImage(imgData, 'PNG', 0, 0, parseInt(canvasWidthInput.value), parseInt(canvasHeightInput.value));
+              pdf.save('跨境物流合规面单.pdf');
+            } else {
+              const link = document.createElement('a');
+              link.download = `跨境物流合规面单.${format}`;
+              link.href = format === 'jpg' ? imgData.replace('image/png', 'image/jpeg') : imgData;
+              link.click();
+            }
+          });
+        }
+    
+        // 筛选标志 (不变)
+        function filterAssets() {
+          const keyword = assetSearchInput.value.toLowerCase();
+          let filtered = state.allAssets;
+          
+          if (state.currentCategory !== 'all') {
+            filtered = filtered.filter(asset => asset.category === state.currentCategory);
+          }
+          
+          if (keyword) {
+            filtered = filtered.filter(asset => 
+              asset.name.toLowerCase().includes(keyword) || 
+              asset.category.toLowerCase().includes(keyword)
+            );
+          }
+          
+          state.filteredAssets = filtered;
+          renderAssetList(filtered);
+        }
+
+        // 更新面板显示和LNB状态 (不变)
+        function updatePanelVisibility(panel) {
+            [textLibrary, assetLibrary, templateLibrary].forEach(p => p.classList.add('hidden'));
+            
+            // 重置所有 LNB 按钮和 Tab 按钮样式 (需要更精确的查找)
+            document.querySelectorAll('.w-16 button').forEach(btn => {
+                btn.classList.remove('text-blue-600');
+                btn.classList.add('text-gray-700', 'hover:text-blue-600');
+            });
+
+            [textTab, assetTab, templateTab].forEach(tab => {
+                tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                tab.classList.add('text-gray-500', 'hover:text-gray-700');
+            });
+
+            let currentLnb, currentTab, currentPanelEl;
+            if (panel === 'text') {
+                // LNB 索引 1 (从0开始，但此处是第三个button)
+                currentLnb = lnbText; 
+                currentTab = textTab;
+                currentPanelEl = textLibrary;
+            } else if (panel === 'asset') {
+                // LNB 索引 3
+                currentLnb = lnbAsset; 
+                currentTab = assetTab;
+                currentPanelEl = assetLibrary;
+            } else if (panel === 'template') {
+                // LNB 索引 4
+                currentLnb = lnbTemplate; 
+                currentTab = templateTab;
+                currentPanelEl = templateLibrary;
+            }
+
+            if (currentLnb) {
+                currentLnb.classList.add('text-blue-600');
+                currentLnb.classList.remove('text-gray-700', 'hover:text-blue-600');
+            }
+            if (currentTab) {
+                currentTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                currentTab.classList.remove('text-gray-500', 'hover:text-gray-700');
+            }
+            if (currentPanelEl) {
+                currentPanelEl.classList.remove('hidden');
+            }
+
+            state.currentPanel = panel;
+        }
+
+        // 应用字体大小 (新增功能)
+        function applyFontSize() {
+            const selectedElement = document.querySelector('.canvas-element.selected[data-type="text-wrapper"]');
+            
+            if (selectedElement) {
+                const contentEl = selectedElement.querySelector('.editable-content');
+                const newSize = fontSizeSelect.value;
+                contentEl.style.fontSize = `${newSize}px`;
+            }
+        }
+
+        // 事件监听
+        function initEventListeners() {
+          // 监听 Delete 和 Backspace 键删除选中元素 (不变)
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+              const focusedElement = document.activeElement;
+              const isInputFocused = (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA');
+              const isEditable = focusedElement.hasAttribute('contenteditable') && focusedElement.getAttribute('contenteditable') === 'true';
+    
+              if (!isInputFocused && !isEditable) {
+                e.preventDefault(); 
+                deleteSelectedElement();
+              }
+            }
+          });
+          
+          // >>> 新增：鼠标滚轮缩放画布功能 <<<
+          // 监听画布容器的父级（可滚动区域）上的滚轮事件
+          canvasContainer.parentElement.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) { // 按住 Ctrl/Cmd 键进行缩放
+              e.preventDefault(); // 阻止浏览器默认的缩放行为
+              
+              const ZOOM_STEP = 0.1;
+              const MIN_ZOOM = 0.5;
+              const MAX_ZOOM = 3.0;
+              
+              if (e.deltaY < 0) {
+                // 向上滚动：放大
+                state.zoomScale = Math.min(MAX_ZOOM, state.zoomScale + ZOOM_STEP);
+              } else {
+                // 向下滚动：缩小
+                state.zoomScale = Math.max(MIN_ZOOM, state.zoomScale - ZOOM_STEP);
+              }
+              
+              updateCanvasZoom();
+            }
+          });
+          // <<< 结束新增 >>>
+    
+          // LNB 按钮点击事件
+          lnbText.addEventListener('click', () => updatePanelVisibility('text'));
+          lnbAsset.addEventListener('click', () => updatePanelVisibility('asset'));
+          lnbTemplate.addEventListener('click', () => updatePanelVisibility('template'));
+          
+          // 标签页切换事件
+          textTab.addEventListener('click', () => updatePanelVisibility('text'));
+          assetTab.addEventListener('click', () => updatePanelVisibility('asset'));
+          templateTab.addEventListener('click', () => updatePanelVisibility('template'));
+
+          // 插入空白文本框按钮事件
+          addBlankTextBtn.addEventListener('click', addBlankTextElementToCanvas);
+
+          // 监听字体大小选择变化 (新增功能)
+          fontSizeSelect.addEventListener('change', applyFontSize);
+    
+          // 模板搜索 (不变)
+          templateSearchInput.addEventListener('input', (e) => {
+            const keyword = e.target.value.toLowerCase();
+            const filtered = state.allTemplates.filter(t => 
+              t.name.toLowerCase().includes(keyword) || 
+              t.description.toLowerCase().includes(keyword)
+            );
+            renderTemplateList(filtered);
+          });
+    
+          // 模板点击 (不变)
+          templateListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.template-card');
+            if (card) {
+              const templateId = card.getAttribute('data-id');
+              loadTemplateToCanvas(templateId);
+            }
+          });
+    
+          // 标志分类筛选 (不变)
+          document.querySelectorAll('.asset-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              document.querySelectorAll('.asset-category-btn').forEach(b => {
+                b.classList.remove('bg-blue-500', 'text-white');
+                b.classList.add('text-gray-600', 'hover:bg-gray-100');
+              });
+              e.target.classList.add('bg-blue-500', 'text-white');
+              e.target.classList.remove('text-gray-600', 'hover:bg-gray-100');
+              
+              state.currentCategory = e.target.getAttribute('data-category');
+              filterAssets();
+            });
+          });
+    
+          // 标志搜索 (不变)
+          assetSearchInput.addEventListener('input', filterAssets);
+    
+          // 标志点击添加 (不变)
+          assetListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.asset-card');
+            if (card) {
+              const src = card.getAttribute('data-src');
+              addAssetToCanvas(src);
+            }
+          });
+    
+          // 画布尺寸应用 (不变)
+          applySizeBtn.addEventListener('click', applyCanvasSize);
+    
+          // 导出按钮 (不变)
+          exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportOptions.classList.toggle('hidden');
+          });
+    
+          document.addEventListener('click', () => {
+            exportOptions.classList.add('hidden');
+          });
+    
+          exportOptions.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const format = btn.getAttribute('data-format');
+              exportCanvas(format);
+              exportOptions.classList.add('hidden');
+            });
+          });
+        }
+    
+        // 启动
+        window.addEventListener('DOMContentLoaded', init);
+      </script>
+
+</body>
+</html>

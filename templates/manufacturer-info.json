@@ -1,0 +1,123 @@
+{
+  "id": "manufacturer-info",
+  "elements": [
+    {
+      "type": "text",
+      "position": { "x": 50, "y": 8 },
+      "content": "产品合规面单",
+      "style": {
+        "fontSize": 14,
+        "fontWeight": "bold",
+        "color": "#333",
+        "textAlign": "center"
+      },
+      "editable": false
+    },
+    {
+      "type": "rect",
+      "position": { "x": 5, "y": 18 },
+      "size": { "width": 90, "height": 30 },
+      "style": {
+        "fill": "white",
+        "stroke": "#333",
+        "strokeWidth": 1
+      }
+    },
+    {
+      "type": "text",
+      "position": { "x": 10, "y": 22 },
+      "content": "制造商信息",
+      "style": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "color": "#333"
+      },
+      "editable": false
+    },
+    {
+      "type": "text",
+      "position": { "x": 10, "y": 32 },
+      "content": "名称：",
+      "style": {
+        "fontSize": 10,
+        "color": "#666"
+      },
+      "editable": true
+    },
+    {
+      "type": "text",
+      "position": { "x": 10, "y": 42 },
+      "content": "地址：",
+      "style": {
+        "fontSize": 10,
+        "color": "#666"
+      },
+      "editable": true
+    },
+    {
+      "type": "rect",
+      "position": { "x": 5, "y": 50 },
+      "size": { "width": 90, "height": 25 },
+      "style": {
+        "fill": "white",
+        "stroke": "#333",
+        "strokeWidth": 1
+      }
+    },
+    {
+      "type": "text",
+      "position": { "x": 10, "y": 54 },
+      "content": "欧盟代表（EC REP）：",
+      "style": {
+        "fontSize": 11,
+        "fontWeight": "bold",
+        "color": "#333"
+      },
+      "editable": false
+    },
+    {
+      "type": "text",
+      "position": { "x": 10, "y": 64 },
+      "content": "名称及地址：",
+      "style": {
+        "fontSize": 10,
+        "color": "#666"
+      },
+      "editable": true
+    },
+    {
+      "type": "image",
+      "position": { "x": 5, "y": 80 },
+      "size": { "width": 45, "height": 15 },
+      "src": "./assets/images/barcode.png",
+      "editable": false
+    },
+    {
+      "type": "image",
+      "position": { "x": 55, "y": 80 },
+      "size": { "width": 15, "height": 15 },
+      "src": "./assets/images/recycle.png",
+      "editable": false
+    },
+    {
+      "type": "text",
+      "position": { "x": 75, "y": 84 },
+      "content": "符合欧盟法规",
+      "style": {
+        "fontSize": 9,
+        "color": "#333"
+      },
+      "editable": false
+    },
+    {
+      "type": "text",
+      "position": { "x": 75, "y": 91 },
+      "content": "Made in China",
+      "style": {
+        "fontSize": 9,
+        "color": "#333"
+      },
+      "editable": false
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "sender-info",
+  "elements": [
+    {
+      "type": "text",
+      "position": { "x": 35, "y": 5 },
+      "content": "跨境物流面单",
+      "style": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "color": "#333",
+        "textAlign": "center"
+      },
+      "editable": false
+    },
+    {
+      "type": "rect",
+      "position": { "x": 5, "y": 15 },
+      "size": { "width": 60, "height": 18 },
+      "style": {
+        "fill": "white",
+        "stroke": "#333",
+        "strokeWidth": 1
+      }
+    },
+    {
+      "type": "text",
+      "position": { "x": 8, "y": 18 },
+      "content": "寄件人信息",
+      "style": {
+        "fontSize": 9,
+        "fontWeight": "bold",
+        "color": "#333"
+      },
+      "editable": false
+    },
+    {
+      "type": "text",
+      "position": { "x": 8, "y": 25 },
+      "content": "公司名称：",
+      "style": {
+        "fontSize": 8,
+        "color": "#666"
+      },
+      "editable": true
+    },
+    {
+      "type": "text",
+      "position": { "x": 8, "y": 32 },
+      "content": "地址：",
+      "style": {
+        "fontSize": 8,
+        "color": "#666"
+      },
+      "editable": true
+    },
+    {
+      "type": "rect",
+      "position": { "x": 5, "y": 38 },
+      "size": { "width": 60, "height": 18 },
+      "style": {
+        "fill": "white",
+        "stroke": "#333",
+        "strokeWidth": 1
+      }
+    },
+    {
+      "type": "text",
+      "position": { "x": 8, "y": 41 },
+      "content": "收件人信息",
+      "style": {
+        "fontSize": 9,
+        "fontWeight": "bold",
+        "color": "#333"
+      },
+      "editable": false
+    },
+    {
+      "type": "text",
+      "position": { "x": 8, "y": 48 },
+      "content": "姓名：",
+      "style": {
+        "fontSize": 8,
+        "color": "#666"
+      },
+      "editable": true
+    },
+    {
+      "type": "text",
+      "position": { "x": 8, "y": 55 },
+      "content": "地址：",
+      "style": {
+        "fontSize": 8,
+        "color": "#666"
+      },
+      "editable": true
+    },
+    {
+      "type": "image",
+      "position": { "x": 5, "y": 60 },
+      "size": { "width": 35, "height": 8 },
+      "src": "./assets/images/barcode.png",
+      "editable": false
+    },
+    {
+      "type": "image",
+      "position": { "x": 45, "y": 60 },
+      "size": { "width": 10, "height": 10 },
+      "src": "./assets/images/warning.png",
+      "editable": false
+    },
+    {
+      "type": "text",
+      "position": { "x": 58, "y": 64 },
+      "content": "易碎 | 合规",
+      "style": {
+        "fontSize": 7,
+        "color": "#e53e3e"
+      },
+      "editable": false
+    }
+  ]
+}
