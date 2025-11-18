@@ -30,6 +30,9 @@
       }
       .canvas-container {
         @apply border border-gray-300 rounded-md bg-white relative overflow-hidden;
+        /* 启用缩放动画 */
+        transform-origin: top left;
+        will-change: transform; 
       }
       .canvas-element {
         @apply absolute select-none;
@@ -274,7 +277,8 @@
           filteredAssets: [],
           currentCategory: 'all',
           currentPanel: 'text', // 默认显示文本库
-          repoName: 'miandan' 
+          repoName: 'miandan',
+          zoomScale: 1.0 // 新增：画布缩放比例，默认 1.0 (100%)
         };
     
         const assetCategories = [
@@ -826,6 +830,12 @@
           canvasContainer.style.width = `${width}mm`;
           canvasContainer.style.height = `${height}mm`;
         }
+        
+        // 应用画布缩放比例 (新增功能)
+        function updateCanvasZoom() {
+            // 将缩放应用到 canvasContainer 上，实现整个画布的视觉缩放
+            canvasContainer.style.transform = `scale(${state.zoomScale})`;
+        }
     
         // 删除选中元素的功能函数 (不变)
         function deleteSelectedElement() {
@@ -974,6 +984,29 @@
               }
             }
           });
+          
+          // >>> 新增：鼠标滚轮缩放画布功能 <<<
+          // 监听画布容器的父级（可滚动区域）上的滚轮事件
+          canvasContainer.parentElement.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) { // 按住 Ctrl/Cmd 键进行缩放
+              e.preventDefault(); // 阻止浏览器默认的缩放行为
+              
+              const ZOOM_STEP = 0.1;
+              const MIN_ZOOM = 0.5;
+              const MAX_ZOOM = 3.0;
+              
+              if (e.deltaY < 0) {
+                // 向上滚动：放大
+                state.zoomScale = Math.min(MAX_ZOOM, state.zoomScale + ZOOM_STEP);
+              } else {
+                // 向下滚动：缩小
+                state.zoomScale = Math.max(MIN_ZOOM, state.zoomScale - ZOOM_STEP);
+              }
+              
+              updateCanvasZoom();
+            }
+          });
+          // <<< 结束新增 >>>
     
           // LNB 按钮点击事件
           lnbText.addEventListener('click', () => updatePanelVisibility('text'));
